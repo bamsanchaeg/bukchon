@@ -2,7 +2,7 @@
 import { useState, type FormEvent } from "react";
 import { SAY_MAX } from "@/lib/constants";
 
-/** 오늘의 말풍선: 내 머리 위에 띄우는 한마디. 12시간 뒤 저절로 사라지고, 언제든 지울 수 있다. */
+/** 오늘의 말풍선: 내 머리 위에 띄우는 한마디. 바꾸거나 지우기 전까지 그대로 남는다. */
 export default function SayBox({ current, onSay }: { current: string; onSay: (text: string) => void | Promise<void> }) {
   const [text, setText] = useState(current);
   const t = text.trim();
