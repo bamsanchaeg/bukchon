@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase, SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/supabase";
-import { HEARTBEAT_MS, SAY_MS, STALE_MS } from "@/lib/constants";
+import { HEARTBEAT_MS, STALE_MS } from "@/lib/constants";
 import { PROFILE_COLUMNS } from "./useAuth";
 import type { House, Profile, ResearchState, Resident, StatusRow, Village, VillageInfo } from "@/lib/types";
 
@@ -162,7 +162,7 @@ export function useVillage(userId: string | null, accessToken: string | null) {
       const status = statuses[m.user_id];
       if (!profile || !house || !status) continue;
       const online = !status.left_at && serverNow - new Date(status.last_seen_at).getTime() < STALE_MS;
-      const say = status.message && status.message_at && serverNow - new Date(status.message_at).getTime() < SAY_MS ? status.message : "";
+      const say = status.message || "";   // 말풍선은 바꾸거나 지우기 전까지 유지된다
       list.push({ ...m, slot: house.slot, profile, house, status, online, say, shown: online ? status.status : "offline" });
     }
     return list.sort((a, b) => a.slot - b.slot);
