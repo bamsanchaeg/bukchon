@@ -110,18 +110,20 @@ export default function LibraryView({
           </div>
         </Window>
       </div>
-      {book && <BookReader key={book.id} book={book} lib={lib} me={me} who={who} run={run} onClose={() => setBookId(null)} />}
+      {book && <BookReader key={book.id} book={book} lib={lib} me={me} who={who} run={run} canRename={book.created_by === me.user_id || isAdmin} onClose={() => setBookId(null)} />}
     </div>
   );
 }
 
 function BookReader({
-  book, lib, me, who, run, onClose,
-}: { book: Book; lib: Lib; me: Resident; who: (id: string | null) => string; run: (p: PromiseLike<{ error: unknown }>) => Promise<boolean>; onClose: () => void }) {
+  book, lib, me, who, run, canRename, onClose,
+}: { book: Book; lib: Lib; me: Resident; who: (id: string | null) => string; run: (p: PromiseLike<{ error: unknown }>) => Promise<boolean>; canRename: boolean; onClose: () => void }) {
   const entries = lib.entries.filter((e) => e.book_id === book.id);
   const [heading, setHeading] = useState("");
   const [body, setBody] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState(false);
+  const [rt, setRt] = useState({ title: book.title, topic: book.topic });
   const sb = supabase();
   const mineBook = book.created_by === me.user_id;
   const open = book.status === "writing";
@@ -144,7 +146,20 @@ function BookReader({
           {mineBook && <button type="button" className="btn btn-sm" onClick={() => void run(sb.from("books").update({ status: open ? "finished" : "writing" }).eq("id", book.id))}>{open ? "완결하기" : "다시 이어 쓰기"}</button>}
           {(mineBook) && <button type="button" className="btn btn-sm btn-danger" onClick={() => { if (window.confirm("책과 모든 글을 지울까요? 되돌릴 수 없어요.")) { void run(sb.from("books").delete().eq("id", book.id)); onClose(); } }}>책 지우기</button>}
         </div>
-        {book.topic && <p className="card p-2 text-sm"><span className="label">주제</span>{book.topic}</p>}
+        {canRename && !renaming && <button type="button" className="btn btn-sm" onClick={() => { setRt({ title: book.title, topic: book.topic }); setRenaming(true); }}>제목·주제 고치기</button>}
+        {renaming && (
+          <form className="card space-y-1 p-2" aria-label="책 제목 고치기" onSubmit={async (e) => { e.preventDefault(); if (await run(sb.from("books").update({ title: rt.title.trim(), topic: rt.topic.trim() }).eq("id", book.id))) setRenaming(false); }}>
+            <label className="label" htmlFor="bk-title">책 제목</label>
+            <input id="bk-title" className="input" maxLength={100} value={rt.title} onChange={(e) => setRt({ ...rt, title: e.target.value })} required />
+            <label className="label" htmlFor="bk-topic">주제 (선택)</label>
+            <input id="bk-topic" className="input" maxLength={300} value={rt.topic} onChange={(e) => setRt({ ...rt, topic: e.target.value })} />
+            <div className="flex gap-1">
+              <button type="submit" className="btn btn-primary btn-sm" disabled={!rt.title.trim() || (rt.title.trim() === book.title && rt.topic.trim() === book.topic)}>저장</button>
+              <button type="button" className="btn btn-sm" onClick={() => setRenaming(false)}>취소</button>
+            </div>
+          </form>
+        )}
+        {!renaming && book.topic && <p className="card p-2 text-sm"><span className="label">주제</span>{book.topic}</p>}
         <ol className="space-y-3">
           {entries.length === 0 && <li className="py-3 text-center text-sm text-ink-soft">아직 글이 없어요.</li>}
           {entries.map((e, i) => (
