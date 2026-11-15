@@ -1,7 +1,9 @@
 "use client";
 import { useFold } from "@/hooks/useFold";
 import { syncPush } from "@/lib/push";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { activeTruckId, truckFromId } from "@/lib/trucks";
+import TruckDialog from "./TruckDialog";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { useAuth } from "@/hooks/useAuth";
 import type { useVillage } from "@/hooks/useVillage";
 import { useChat } from "@/hooks/useChat";
@@ -51,6 +53,14 @@ interface Props {
 
 export default function VillageApp({ auth, v, onAddVillage, pendingOpen, onPendingHandled, onOpenInOtherVillage }: Props) {
     useEffect(() => { void syncPush(); }, []);
+  // 광장에 오는 트럭: 새벽 야식 트럭(간헐적)과 아침 밥차(매일). 알림은 보내지 않고 지도에만 나타난다
+  const truckId = useSyncExternalStore(
+    (cb) => { const t = setInterval(cb, 30_000); return () => clearInterval(t); },
+    () => activeTruckId(),
+    () => "",
+  );
+  const truck = truckId ? truckFromId(truckId) : null;
+  const [truckOpen, setTruckOpen] = useState(false);
   const foldProfile = useFold("home-profile");
   const foldChat = useFold("home-chat");
 const me = v.me!;
@@ -286,6 +296,8 @@ const me = v.me!;
                     residents={v.residents}
                     myId={me.user_id}
                     onCharacter={setSelected}
+                    truck={truck?.kind ?? null}
+                    onTruck={() => setTruckOpen(true)}
                     onHouse={(slot) => {
                       const owner = v.residents.find((r) => r.slot === slot);
                       if (!owner) return;
@@ -352,6 +364,7 @@ const me = v.me!;
         <ProfileModal resident={selectedResident} isMe={selectedResident.user_id === me.user_id} onClose={() => setSelected(null)} onEditProfile={() => { setSelected(null); setView("settings"); }} onVisit={() => visit(selectedResident.user_id)} onChat={() => void startChat(selectedResident.user_id)} give={give(selectedResident.user_id)} />
       )}
       {newsOpen && <PlazaNews villageId={village.id} myId={me.user_id} isAdmin={me.role === "admin"} residents={v.residents} onClose={() => setNewsOpen(false)} />}
+      {truck && truckOpen && <TruckDialog key={truck.id} truck={truck} onClose={() => setTruckOpen(false)} />}
       {toast && !(toast.kind === "notif" && view === "alerts") && !(toast.kind === "chat" && view === "chat" && chatId === toast.conv.id) && (
         <div role="status" className="window fixed bottom-4 right-4 z-50 max-w-xs" style={{ background: "#fff3c4" }}>
           <div className="space-y-2 p-3 text-sm">
