@@ -5,7 +5,7 @@ import { currentPhase, currentSeason, type DayPhase, type Season } from "@/lib/t
 import type { House, Resident } from "@/lib/types";
 import { bake } from "@/pixel/core";
 import { fxGrid } from "@/pixel/fx";
-import { TRUCK_AWNING_Y, TRUCK_H, TRUCK_POS, TRUCK_W, TRUCK_WINDOW, truckGrid } from "@/pixel/truck";
+import { RACCOON_POS, TRUCK_AWNING_Y, TRUCK_H, TRUCK_POS, TRUCK_REST_SPOTS, TRUCK_W, TRUCK_WINDOW, ladleGrid, raccoonGrid, truckGrid } from "@/pixel/truck";
 import { AV_CX, AV_H, avatarGrid } from "@/pixel/avatar";
 import {
   BOARD, BUSHES, DESK_POS, H, HOUSE_H, HOUSE_META, HOUSE_POS, LAMPS, LIBRARY, LIBRARY_SPOTS, LIB_H, LIB_W, PLAZA, POND, REST_SPOTS, SEASONS, TREES, TREE_H, W,
@@ -98,7 +98,7 @@ export default function VillageScene({ houses, residents, myId, onCharacter, onH
       const door = { x: HOUSE_POS[r.slot].x + 9, y: HOUSE_POS[r.slot].y + 3 };
       if (r.shown === "open") return { x: DESK_POS[r.slot].x, y: DESK_POS[r.slot].y - 2, visible: true };
       if (r.shown === "library") return { ...LIBRARY_SPOTS[r.slot], visible: true };
-      if (r.shown === "rest") return { ...REST_SPOTS[r.slot], visible: true };
+      if (r.shown === "rest") return { ...(truck ? TRUCK_REST_SPOTS : REST_SPOTS)[r.slot], visible: true };
       return { ...door, visible: false };
     };
 
@@ -177,6 +177,19 @@ export default function VillageScene({ houses, residents, myId, onCharacter, onH
               b.fillStyle = (slow + x) % 2 ? "#ffe34a" : "#ff9fb6";
               b.fillRect(tx + x + 1, ty + TRUCK_AWNING_Y + 1, 2, 2);
             }
+          },
+        });
+      }
+      if (truck) {
+        // 요리사 모자를 쓴 너구리가 국자를 휘젓는다
+        items.push({
+          y: RACCOON_POS.y,
+          draw: () => {
+            shadow(RACCOON_POS.x, RACCOON_POS.y, 7);
+            const bob = slow % 3 === 0 ? 1 : 0;
+            const rx = RACCOON_POS.x - 11, ry = RACCOON_POS.y - 27 - bob;
+            b.drawImage(sp("raccoon", () => raccoonGrid()), rx, ry);
+            b.drawImage(sp("ladle", () => ladleGrid()), rx + 13 + Math.round(Math.sin(tick * 0.28) * 2), ry + 7 + Math.round(Math.cos(tick * 0.28)));
           },
         });
       }
