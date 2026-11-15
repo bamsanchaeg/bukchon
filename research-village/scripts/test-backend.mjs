@@ -520,6 +520,19 @@ await t("상호작용: 장난·선물·책 추천·일지 반응과 댓글·마�
   }
 });
 
+await t("마을 건물(도서관 모양)은 마을 장만 바꿀 수 있다", async () => {
+  assert.equal(ok(await a.c.from("villages").select("library_style").eq("id", village).single()).library_style, "classic");
+  // 주민은 못 바꾼다 (정책이 행을 걸러 내서 바뀐 행이 없다)
+  assert.equal((await m2.c.from("villages").update({ library_style: "bicheondang" }).eq("id", village).select()).data.length, 0);
+  assert.equal(ok(await m2.c.from("villages").select("library_style").eq("id", village).single()).library_style, "classic");
+  assert.equal((await outside[0].c.from("villages").update({ library_style: "bicheondang" }).eq("id", village).select()).data?.length ?? 0, 0);
+  // 마을 장은 바꿀 수 있고 모든 주민에게 보인다
+  assert.equal(ok(await a.c.from("villages").update({ library_style: "bicheondang" }).eq("id", village).select()).length, 1);
+  assert.equal(ok(await m2.c.from("villages").select("library_style").eq("id", village).single()).library_style, "bicheondang");
+  // 정해진 모양만
+  assert.ok((await a.c.from("villages").update({ library_style: "castle" }).eq("id", village)).error);
+});
+
 await t("관리자가 주민을 내보내면 집이 비고 기록이 사라진다", async () => {
   assert.ok((await m2.c.rpc("remove_member", { p_village: village, p_user: m3.id })).error);
   ok(await a.c.rpc("remove_member", { p_village: village, p_user: m3.id }));

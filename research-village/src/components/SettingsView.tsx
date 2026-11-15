@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { errorMessage, supabase } from "@/lib/supabase";
 import { VILLAGE_CAPACITY } from "@/lib/constants";
 import type { HouseType, Profile, Resident, Village } from "@/lib/types";
@@ -8,6 +8,9 @@ import HousePicker from "./HousePicker";
 import ProfileForm from "./ProfileForm";
 import { useFold } from "@/hooks/useFold";
 import PushSettings from "./PushSettings";
+import { UPDATES } from "@/lib/updates";
+import PixelArt from "./PixelArt";
+import { libraryGrid, type LibraryStyle } from "@/pixel/village";
 import { detachPush } from "@/lib/push";
 import { Notice, Window } from "./ui";
 
@@ -38,6 +41,7 @@ function AdminPanel({ village, residents, myId, reload }: { village: Village; re
     setMsg(error ? { kind: "error", text: errorMessage(error) } : { kind: "ok", text: ok });
     await Promise.all([loadInvite(), reload()]);
   };
+  const libraries = useMemo(() => ({ classic: libraryGrid(true, "classic"), bicheondang: libraryGrid(true, "bicheondang") }), []);
   const expired = invite?.expired ?? false;
   const copy = async () => {
     if (!invite) return;
@@ -60,6 +64,20 @@ function AdminPanel({ village, residents, myId, reload }: { village: Village; re
           </div>
           <button type="submit" className="btn" disabled={busy || !name.trim() || name.trim() === village.name}>바꾸기</button>
         </form>
+
+        <section className="dotted space-y-2 pt-3" aria-label="마을 건물">
+          <h3 className="label">마을 건물 · 도서관 <span className="text-ink-soft">(마을 장만 바꿀 수 있어요)</span></h3>
+          <div className="flex flex-wrap gap-3">
+            {([["classic", "기본 도서관"], ["bicheondang", "성균관대 비천당"]] as [LibraryStyle, string][]).map(([id, label]) => (
+              <button key={id} type="button" aria-pressed={village.library_style === id} disabled={busy}
+                onClick={() => void act(() => supabase().from("villages").update({ library_style: id }).eq("id", village.id), `도서관이 ‘${label}’(으)로 바뀌었어요.`)}
+                className={`card px-2 pb-2 pt-2 text-center ${village.library_style === id ? "card-on" : "hover:bg-[#fff3c4]"}`}>
+                <PixelArt art={libraries[id]} scale={2} label={`${label} 미리 보기`} />
+                <span className="block font-display text-sm">{label}</span>
+              </button>
+            ))}
+          </div>
+        </section>
 
         <section className="dotted pt-3">
           <h3 className="label">초대 링크 <span className="text-ink-soft">(주민 {residents.length}/{VILLAGE_CAPACITY}명)</span></h3>
@@ -148,6 +166,7 @@ export default function SettingsView({
 
   const foldHouse = useFold("settings-house");
   const foldData = useFold("settings-data");
+  const foldNews = useFold("settings-news");
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <div className="space-y-4">
@@ -168,6 +187,16 @@ export default function SettingsView({
       <div className="space-y-4">
         <Window title="폰 알림" icon="" tone="sky">
           <PushSettings />
+        </Window>
+        <Window title="업데이트 소식" icon="" tone="butter" controls={foldNews}>
+          <ul className="space-y-2 p-3">
+            {UPDATES.map((u) => (
+              <li key={u.id} className="card px-3 py-2">
+                <p className="font-display">{u.title} <span className="text-xs text-ink-soft">· {u.date}</span></p>
+                <p className="text-sm text-ink-soft">{u.body}</p>
+              </li>
+            ))}
+          </ul>
         </Window>
         <Window title={`집 꾸미기 · ${village.name}`} icon="" tone="mint" controls={foldHouse}>
           <div className="space-y-3 p-3">
