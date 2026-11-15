@@ -30,7 +30,7 @@ export interface SceneProps {
   onPlace: (place: "library" | "plaza" | "board") => void;
   /** 연구실 앞 책상을 눌렀을 때 */
   onDesk: (slot: number) => void;
-  /** 이웃에게 던지기 (논문·각주 폭탄 등). id 가 바뀔 때마다 한 번 재생된다 */
+  /** 이웃에게 던지기 (학위논문·마감 알림·과자). id 가 바뀔 때마다 한 번 재생된다 */
   fx?: { id: number; kind: string; from: string; to: string } | null;
 }
 
