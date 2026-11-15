@@ -25,6 +25,7 @@ import ShoutBoard from "./ShoutBoard";
 import ProfileModal from "./ProfileModal";
 import SettingsView from "./SettingsView";
 import WelcomeBack from "./WelcomeBack";
+import UpdateNotice from "./UpdateNotice";
 import { awayDays, isGesture } from "@/lib/social";
 import { Notice, Window } from "./ui";
 
@@ -227,6 +228,7 @@ const me = v.me!;
       </nav>
       {notice && <Notice kind="error">{notice}</Notice>}
 
+      {view === "home" && <UpdateNotice userId={me.user_id} />}
       {view === "home" && <WelcomeBack prevSeen={v.prevSeen} userId={me.user_id} nudges={notifs.list.filter((n) => n.kind === "nudge" && !n.read_at).length} onGoLab={() => enterRoom(false)} />}
       {view === "home" && (
         <main className="grid gap-5 lg:grid-cols-[264px_minmax(0,1fr)_276px]">

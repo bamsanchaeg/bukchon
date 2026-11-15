@@ -8,6 +8,7 @@ import HousePicker from "./HousePicker";
 import ProfileForm from "./ProfileForm";
 import { useFold } from "@/hooks/useFold";
 import PushSettings from "./PushSettings";
+import { UPDATES } from "@/lib/updates";
 import { detachPush } from "@/lib/push";
 import { Notice, Window } from "./ui";
 
@@ -148,6 +149,7 @@ export default function SettingsView({
 
   const foldHouse = useFold("settings-house");
   const foldData = useFold("settings-data");
+  const foldNews = useFold("settings-news");
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <div className="space-y-4">
@@ -168,6 +170,16 @@ export default function SettingsView({
       <div className="space-y-4">
         <Window title="폰 알림" icon="" tone="sky">
           <PushSettings />
+        </Window>
+        <Window title="업데이트 소식" icon="" tone="butter" controls={foldNews}>
+          <ul className="space-y-2 p-3">
+            {UPDATES.map((u) => (
+              <li key={u.id} className="card px-3 py-2">
+                <p className="font-display">{u.title} <span className="text-xs text-ink-soft">· {u.date}</span></p>
+                <p className="text-sm text-ink-soft">{u.body}</p>
+              </li>
+            ))}
+          </ul>
         </Window>
         <Window title={`집 꾸미기 · ${village.name}`} icon="" tone="mint" controls={foldHouse}>
           <div className="space-y-3 p-3">
