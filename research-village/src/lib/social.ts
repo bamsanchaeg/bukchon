@@ -1,11 +1,15 @@
 /** 이웃끼리 주고받는 상호작용의 종류와 문구 */
 export const GESTURES = [
   { id: "thesis", label: "학위논문", icon: "📘", hit: "학위논문(312쪽)으로 때렸어요!" },
-  { id: "footnote", label: "각주 폭탄", icon: "💣", hit: "각주 폭탄을 던졌어요!" },
-  { id: "redpen", label: "빨간 펜", icon: "🖍️", hit: "빨간 펜으로 첨삭했어요!" },
-  { id: "alarm", label: "마감 알람", icon: "⏰", hit: "마감 알람을 울렸어요!" },
+  { id: "alarm", label: "마감 알림", icon: "⏰", hit: "마감 알림을 울렸어요!" },
+  { id: "snack", label: "학회 하고 남은 과자", icon: "🍪", hit: "학회 하고 남은 과자를 던졌어요!" },
 ] as const;
 export type GestureId = (typeof GESTURES)[number]["id"];
+/** 예전에 보낸 알림이 계속 읽히도록 남겨 둔 지금은 보낼 수 없는 던지기 */
+const OLD_GESTURES = [
+  { id: "footnote", hit: "각주 폭탄을 던졌어요!" },
+  { id: "redpen", hit: "빨간 펜으로 첨삭했어요!" },
+] as const;
 
 export const GIFTS = [
   { id: "coffee", label: "커피 한 잔", icon: "☕" },
@@ -24,7 +28,8 @@ export const REACTIONS = [
   { id: "book", label: "저도 읽었어요", icon: "book" },
 ] as const;
 
-export const gestureOf = (id: string) => GESTURES.find((g) => g.id === id);
+export const gestureOf = (id: string): { id: string; hit: string } | undefined => GESTURES.find((g) => g.id === id) ?? OLD_GESTURES.find((g) => g.id === id);
+export const isGesture = (id: string): id is GestureId => GESTURES.some((g) => g.id === id);
 export const giftOf = (id: string) => GIFTS.find((g) => g.id === id);
 export const reactionOf = (id: string) => REACTIONS.find((g) => g.id === id);
 

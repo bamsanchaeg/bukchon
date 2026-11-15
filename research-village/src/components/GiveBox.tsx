@@ -15,7 +15,7 @@ function useFeedback() {
   return { done, view };
 }
 
-/** 던지기: 마을에서 밖에 나와 있는 이웃에게 (논문·각주 폭탄·빨간 펜·마감 알람) */
+/** 던지기: 마을에서 밖에 나와 있는 이웃에게 (학위논문·마감 알림·학회 하고 남은 과자) */
 export function ThrowBox({ name, onGesture }: { name: string; onGesture: (kind: GestureId) => Promise<Result> | Result }) {
   const { done, view } = useFeedback();
   return (

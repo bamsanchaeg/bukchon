@@ -23,7 +23,7 @@ import ShoutBoard from "./ShoutBoard";
 import ProfileModal from "./ProfileModal";
 import SettingsView from "./SettingsView";
 import WelcomeBack from "./WelcomeBack";
-import { awayDays } from "@/lib/social";
+import { awayDays, isGesture } from "@/lib/social";
 import { Notice, Window } from "./ui";
 
 type View = "home" | "room" | "visit" | "library" | "chat" | "alerts" | "settings";
@@ -345,7 +345,7 @@ const me = v.me!;
       })()}
       {view === "library" && <main><LibraryView lib={lib} villageId={village.id} me={me} residents={v.residents} isAdmin={me.role === "admin"} /></main>}
       {view === "chat" && <main><ChatView chat={chat} residents={v.residents} myId={me.user_id} selectedId={chatId} onSelect={setChatId} /></main>}
-      {view === "alerts" && <main><NotificationsView list={notifs.list} residents={v.residents} myId={me.user_id} names={notifs.names} villages={v.villages} villageId={village.id} onOpen={openNotification} onReply={(n) => give(n.actor_id).onGesture(n.summary)} onReadAll={() => void notifs.markRead(notifs.list.filter((n) => !n.read_at).map((n) => n.id))} /></main>}
+      {view === "alerts" && <main><NotificationsView list={notifs.list} residents={v.residents} myId={me.user_id} names={notifs.names} villages={v.villages} villageId={village.id} onOpen={openNotification} onReply={(n) => give(n.actor_id).onGesture(isGesture(n.summary) ? n.summary : "thesis")} onReadAll={() => void notifs.markRead(notifs.list.filter((n) => !n.read_at).map((n) => n.id))} /></main>}
       {view === "settings" && <main><SettingsView profile={profile} me={me} village={village} residents={v.residents} reloadProfile={auth.reloadProfile} reloadVillage={v.reload} /></main>}
 
       {selectedResident && (
