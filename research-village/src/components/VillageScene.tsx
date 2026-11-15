@@ -9,7 +9,7 @@ import { RACCOON_POS, TRUCK_AWNING_Y, TRUCK_H, TRUCK_POS, TRUCK_REST_SPOTS, TRUC
 import { AV_CX, AV_H, avatarGrid } from "@/pixel/avatar";
 import {
   BOARD, BUSHES, DESK_POS, H, HOUSE_H, HOUSE_META, HOUSE_POS, LAMPS, LIBRARY, LIBRARY_SPOTS, LIB_H, LIB_W, PLAZA, POND, REST_SPOTS, SEASONS, TREES, TREE_H, W,
-  benchGrid, boardGrid, bubbleGrid, bushGrid, chairGrid, deskGrid, fountainGrid, groundGrid, houseGrid, houseTypeOf, lampGrid, libraryGrid, treeGrid,
+  benchGrid, boardGrid, bubbleGrid, bushGrid, chairGrid, deskGrid, fountainGrid, groundGrid, houseGrid, houseTypeOf, lampGrid, libraryGrid, treeGrid, type LibraryStyle,
 } from "@/pixel/village";
 
 const PHASE_LABEL: Record<DayPhase, string> = { dawn: "새벽", day: "낮", dusk: "해질녘", night: "밤" };
@@ -32,13 +32,15 @@ export interface SceneProps {
   /** 광장에 와 있는 트럭(야식 트럭·아침 밥차). 눌렀을 때 */
   truck?: "night" | "morning" | null;
   onTruck?: () => void;
+  /** 도서관 건물 모양(마을 장이 바꾼다) */
+  libraryStyle?: LibraryStyle;
   /** 연구실 앞 책상을 눌렀을 때 */
   onDesk: (slot: number) => void;
   /** 이웃에게 던지기 (학위논문·마감 알림·과자). id 가 바뀔 때마다 한 번 재생된다 */
   fx?: { id: number; kind: string; from: string; to: string } | null;
 }
 
-export default function VillageScene({ houses, residents, myId, onCharacter, onHouse, onPlace, onDesk, fx, truck, onTruck }: SceneProps) {
+export default function VillageScene({ houses, residents, myId, onCharacter, onHouse, onPlace, onDesk, fx, truck, onTruck, libraryStyle = "classic" }: SceneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const tagRefs = useRef(new Map<string, HTMLButtonElement>());
@@ -194,7 +196,7 @@ export default function VillageScene({ houses, residents, myId, onCharacter, onH
         });
       }
       const libLit = night || residents.some((r) => r.shown === "library");
-      items.push({ y: LIBRARY.y, draw: () => b.drawImage(sp(`lib${libLit}`, () => libraryGrid(libLit)), LIBRARY.x - LIB_W / 2, LIBRARY.y - LIB_H + 2) });
+      items.push({ y: LIBRARY.y, draw: () => b.drawImage(sp(`lib${libLit}${libraryStyle}`, () => libraryGrid(libLit, libraryStyle)), LIBRARY.x - LIB_W / 2, LIBRARY.y - LIB_H + 2) });
 
       for (const h of houses) {
         const pos = HOUSE_POS[h.slot], r = bySlot.get(h.slot);
@@ -336,7 +338,7 @@ export default function VillageScene({ houses, residents, myId, onCharacter, onH
       cancelAnimationFrame(raf);
       ro.disconnect();
     };
-  }, [clock, truck]);
+  }, [clock, truck, libraryStyle]);
 
   const bySlot = new Map(residents.map((r) => [r.slot, r]));
   return (

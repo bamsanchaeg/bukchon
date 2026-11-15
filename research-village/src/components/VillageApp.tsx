@@ -299,6 +299,7 @@ const me = v.me!;
                     myId={me.user_id}
                     onCharacter={setSelected}
                     truck={truck?.kind ?? null}
+                    libraryStyle={village.library_style}
                     onTruck={() => setTruckOpen(true)}
                     onHouse={(slot) => {
                       const owner = v.residents.find((r) => r.slot === slot);

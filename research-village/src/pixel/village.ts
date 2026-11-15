@@ -398,7 +398,10 @@ export function houseGrid(style: HouseStyle, opts: HouseOpts): Grid {
 export const LIB_W = 104;
 export const LIB_H = 84;
 /** 도서관. 바닥 가운데가 (52, 82) */
-export function libraryGrid(lit: boolean): Grid {
+export type LibraryStyle = "classic" | "bicheondang";
+
+export function libraryGrid(lit: boolean, style: LibraryStyle = "classic"): Grid {
+  if (style === "bicheondang") return bicheondangGrid(lit);
   const g = grid(LIB_W, LIB_H);
   const roof = "#6f93c4", roofD = "#5477a8", roofL = "#95b4dc", cream = "#f6ead0", creamD = "#dcc9a4";
   // 박공 지붕
@@ -595,4 +598,64 @@ export function bubbleGrid(state: ResearchState): Grid {
   const icon = iconGrid(state);
   for (let y = 0; y < 7; y++) for (let x = 0; x < 7; x++) if (icon.d[y * 7 + x]) px(g, 3 + x, 2 + y, icon.d[y * 7 + x]);
   return outline(g, INK);
+}
+
+/** 성균관대 비천당: 단청 두른 처마, 붉은 기둥, 격자 창호, 기단과 계단이 있는 큰 팔작지붕 한옥 (도서관 자리에 서는 건물) */
+export function bicheondangGrid(lit: boolean): Grid {
+  const g = grid(LIB_W, LIB_H);
+  const tile = "#3f4a63", tileD = "#303a52", tileL = "#5a6788", white = "#ece6d2", paper = lit ? "#ffe07a" : "#efe6cc", paperD = lit ? "#e8b84a" : "#cfc3a4";
+  // 팔작지붕: 위가 좁고 아래로 휘어 퍼진다
+  for (let y = 0; y <= 26; y++) {
+    const half = Math.round(15 + Math.pow(y / 26, 1.15) * 36);
+    for (let x = 52 - half; x < 52 + half; x++) {
+      let c = tile;
+      if (y % 4 === 3) c = tileD;
+      else if ((x + Math.floor(y / 4) * 2) % 5 === 0) c = tileD;
+      if (x === 52 - half || x === 52 - half + 1 || x === 52 + half - 1 || x === 52 + half - 2) c = tileL;
+      px(g, x, 4 + y, c);
+    }
+  }
+  rect(g, 38, 3, 28, 2, tileL); rect(g, 36, 2, 3, 3, tileD); rect(g, 65, 2, 3, 3, tileD); px(g, 36, 1, tileD); px(g, 67, 1, tileD);   // 용마루와 양 끝 장식
+  for (let y = 7; y <= 15; y++) { const half = Math.round(2 + (y - 7) * 1.1); rect(g, 52 - half, y, half * 2, 1, white); }          // 합각(작은 박공 면)
+  disc(g, 51.5, 12, 2, 2, "#8a6f4a"); px(g, 51, 11, "#c9ae7a");
+  // 처마 끝이 살짝 들린다
+  rect(g, 0, 30, 104, 2, tileD); rect(g, 0, 29, 4, 1, tileL); rect(g, 100, 29, 4, 1, tileL); px(g, 0, 28, tileL); px(g, 103, 28, tileL); px(g, 1, 28, tileL); px(g, 102, 28, tileL);
+  // 단청 두른 공포 층
+  rect(g, 5, 32, 94, 6, "#5a2f26");
+  for (let x = 6, i = 0; x < 98; x += 6, i++) {
+    rect(g, x, 33, 2, 4, "#3f9a8a"); rect(g, x + 2, 33, 2, 4, "#c4483f"); rect(g, x + 4, 33, 2, 4, "#4a6fb0");
+    px(g, x, 35, "#f4efe0"); px(g, x + 3, 34, "#f4efe0"); px(g, x + 5, 35, "#f4efe0");
+  }
+  rect(g, 5, 38, 94, 2, "#8a3a2a"); rect(g, 5, 38, 94, 1, "#a8503a");
+  // 기둥과 격자 창호
+  rect(g, 7, 40, 90, 30, "#2a2433");
+  const cols = [6, 24, 41, 59, 76, 94];
+  for (let i = 0; i < cols.length - 1; i++) {
+    const x0 = cols[i] + 4, x1 = cols[i + 1];
+    const mid = i === 2;
+    if (mid) {
+      rect(g, x0, 41, x1 - x0, 28, lit ? "#5a3a2a" : "#2a2433");
+      if (lit) { rect(g, x0 + 2, 43, x1 - x0 - 4, 24, "#ffd98a"); rect(g, x0 + 2, 43, x1 - x0 - 4, 3, "#fff0c4"); }
+      rect(g, x0 + (x1 - x0) / 2 - 1, 41, 1, 28, "#6b3a2a");
+    } else {
+      rect(g, x0, 41, x1 - x0, 28, paper);
+      for (let x = x0 + 3; x < x1; x += 3) rect(g, x, 41, 1, 28, paperD);
+      for (let y = 47; y < 69; y += 7) rect(g, x0, y, x1 - x0, 1, "#7a4a30");
+      rect(g, x0, 41, x1 - x0, 1, "#7a4a30");
+    }
+  }
+  for (const cx of cols) {
+    rect(g, cx, 40, 4, 31, "#b5472f"); rect(g, cx + 3, 40, 1, 31, "#8a3320"); rect(g, cx, 40, 1, 31, "#cf5c40");
+    rect(g, cx - 1, 69, 6, 2, "#9aa0ab"); rect(g, cx - 1, 70, 6, 1, "#7d818b");
+  }
+  // 현판 (검은 바탕에 금빛 글씨 느낌)
+  rect(g, 43, 40, 18, 7, "#1f1a22"); rect(g, 43, 40, 18, 1, "#e8c24a"); rect(g, 43, 46, 18, 1, "#e8c24a"); rect(g, 43, 40, 1, 7, "#e8c24a"); rect(g, 60, 40, 1, 7, "#e8c24a");
+  for (const gx of [45, 50, 55]) { rect(g, gx, 42, 4, 1, "#e8c24a"); rect(g, gx + 1, 42, 1, 3, "#e8c24a"); rect(g, gx + 3, 43, 1, 2, "#e8c24a"); rect(g, gx, 44, 3, 1, "#e8c24a"); }
+  // 기단과 계단
+  rect(g, 2, 71, 100, 5, "#b9bdc6"); rect(g, 2, 71, 100, 1, "#d6d9e0"); rect(g, 2, 75, 100, 1, "#8a8e99");
+  for (let x = 6; x < 100; x += 12) rect(g, x, 72, 1, 3, "#9a9eaa");
+  rect(g, 34, 76, 36, 3, "#d0d4da"); rect(g, 34, 78, 36, 1, "#9a9eaa");
+  rect(g, 30, 79, 44, 3, "#c0c4cc"); rect(g, 30, 81, 44, 1, "#9a9eaa");
+  rect(g, 26, 82, 52, 2, "#aeb2bb");
+  return outline(g);
 }
