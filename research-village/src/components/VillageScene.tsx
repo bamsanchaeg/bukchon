@@ -5,6 +5,7 @@ import { currentPhase, currentSeason, type DayPhase, type Season } from "@/lib/t
 import type { House, Resident } from "@/lib/types";
 import { bake } from "@/pixel/core";
 import { fxGrid } from "@/pixel/fx";
+import { RACCOON_POS, TRUCK_AWNING_Y, TRUCK_H, TRUCK_POS, TRUCK_REST_SPOTS, TRUCK_W, TRUCK_WINDOW, ladleGrid, raccoonGrid, truckGrid } from "@/pixel/truck";
 import { AV_CX, AV_H, avatarGrid } from "@/pixel/avatar";
 import {
   BOARD, BUSHES, DESK_POS, H, HOUSE_H, HOUSE_META, HOUSE_POS, LAMPS, LIBRARY, LIBRARY_SPOTS, LIB_H, LIB_W, PLAZA, POND, REST_SPOTS, SEASONS, TREES, TREE_H, W,
@@ -28,13 +29,16 @@ export interface SceneProps {
   onCharacter: (userId: string) => void;
   onHouse: (slot: number) => void;
   onPlace: (place: "library" | "plaza" | "board") => void;
+  /** 광장에 와 있는 트럭(야식 트럭·아침 밥차). 눌렀을 때 */
+  truck?: "night" | "morning" | null;
+  onTruck?: () => void;
   /** 연구실 앞 책상을 눌렀을 때 */
   onDesk: (slot: number) => void;
   /** 이웃에게 던지기 (학위논문·마감 알림·과자). id 가 바뀔 때마다 한 번 재생된다 */
   fx?: { id: number; kind: string; from: string; to: string } | null;
 }
 
-export default function VillageScene({ houses, residents, myId, onCharacter, onHouse, onPlace, onDesk, fx }: SceneProps) {
+export default function VillageScene({ houses, residents, myId, onCharacter, onHouse, onPlace, onDesk, fx, truck, onTruck }: SceneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const tagRefs = useRef(new Map<string, HTMLButtonElement>());
@@ -94,7 +98,7 @@ export default function VillageScene({ houses, residents, myId, onCharacter, onH
       const door = { x: HOUSE_POS[r.slot].x + 9, y: HOUSE_POS[r.slot].y + 3 };
       if (r.shown === "open") return { x: DESK_POS[r.slot].x, y: DESK_POS[r.slot].y - 2, visible: true };
       if (r.shown === "library") return { ...LIBRARY_SPOTS[r.slot], visible: true };
-      if (r.shown === "rest") return { ...REST_SPOTS[r.slot], visible: true };
+      if (r.shown === "rest") return { ...(truck ? TRUCK_REST_SPOTS : REST_SPOTS)[r.slot], visible: true };
       return { ...door, visible: false };
     };
 
@@ -152,6 +156,43 @@ export default function VillageScene({ houses, residents, myId, onCharacter, onH
       items.push({ y: PLAZA.y + 30, draw: () => b.drawImage(bench, PLAZA.x - 44, PLAZA.y + 18) });
       items.push({ y: PLAZA.y + 30, draw: () => b.drawImage(bench, PLAZA.x + 20, PLAZA.y + 18) });
       items.push({ y: BOARD.y, draw: () => { shadow(BOARD.x, BOARD.y, 14); b.drawImage(board, BOARD.x - 17, BOARD.y - 33); } });
+      if (truck) {
+        const tx = TRUCK_POS.x - TRUCK_W / 2, ty = TRUCK_POS.y - TRUCK_H + 3;
+        items.push({
+          y: TRUCK_POS.y,
+          draw: () => {
+            shadow(TRUCK_POS.x, TRUCK_POS.y, 22);
+            b.drawImage(sp(`truck-${truck}`, () => truckGrid(truck)), tx, ty);
+            // 창문에서 올라오는 김
+            for (let i = 0; i < 3; i++) {
+              const p = (tick * 0.014 + i / 3) % 1;
+              b.globalAlpha = 0.9 * (1 - p);
+              b.fillStyle = "#ffffff";
+              const size = 2 + Math.round(p * 2);
+              b.fillRect(Math.round(tx + TRUCK_WINDOW.x + (i - 1) * 5 + Math.sin(p * 6 + i) * 2), Math.round(ty + TRUCK_WINDOW.y - 2 - p * 14), size, size);
+            }
+            b.globalAlpha = 1;
+            // 야식 트럭은 차양 끝에 알전구가 번갈아 반짝인다
+            if (truck === "night") for (let x = 5; x < 30; x += 4) {
+              b.fillStyle = (slow + x) % 2 ? "#ffe34a" : "#ff9fb6";
+              b.fillRect(tx + x + 1, ty + TRUCK_AWNING_Y + 1, 2, 2);
+            }
+          },
+        });
+      }
+      if (truck) {
+        // 요리사 모자를 쓴 너구리가 국자를 휘젓는다
+        items.push({
+          y: RACCOON_POS.y,
+          draw: () => {
+            shadow(RACCOON_POS.x, RACCOON_POS.y, 7);
+            const bob = slow % 3 === 0 ? 1 : 0;
+            const rx = RACCOON_POS.x - 11, ry = RACCOON_POS.y - 27 - bob;
+            b.drawImage(sp("raccoon", () => raccoonGrid()), rx, ry);
+            b.drawImage(sp("ladle", () => ladleGrid()), rx + 13 + Math.round(Math.sin(tick * 0.28) * 2), ry + 7 + Math.round(Math.cos(tick * 0.28)));
+          },
+        });
+      }
       const libLit = night || residents.some((r) => r.shown === "library");
       items.push({ y: LIBRARY.y, draw: () => b.drawImage(sp(`lib${libLit}`, () => libraryGrid(libLit)), LIBRARY.x - LIB_W / 2, LIBRARY.y - LIB_H + 2) });
 
@@ -274,6 +315,7 @@ export default function VillageScene({ houses, residents, myId, onCharacter, onH
           };
           const a = night ? 0.5 : 0.22;
           for (const l of LAMPS) glow(l.x, l.y - 23, 26, a);
+          if (truck) glow(TRUCK_POS.x - 9, TRUCK_POS.y - 17, 26, a + 0.15);
           for (const h of houses) if (bySlot.get(h.slot)?.online) { const m = HOUSE_META[houseTypeOf(h.style)]; glow(HOUSE_POS[h.slot].x - 27 + m.window.x + 5, HOUSE_POS[h.slot].y - 62 + m.window.y + 5, 20, a); }
           if (libLit) { glow(LIBRARY.x - 27, LIBRARY.y - 30, 18, a); glow(LIBRARY.x + 27, LIBRARY.y - 30, 18, a); }
           if (night) for (let i = 0; i < 10; i++) {
@@ -294,7 +336,7 @@ export default function VillageScene({ houses, residents, myId, onCharacter, onH
       cancelAnimationFrame(raf);
       ro.disconnect();
     };
-  }, [clock]);
+  }, [clock, truck]);
 
   const bySlot = new Map(residents.map((r) => [r.slot, r]));
   return (
@@ -306,6 +348,7 @@ export default function VillageScene({ houses, residents, myId, onCharacter, onH
       <button type="button" className="scene-hit" style={pct(LIBRARY.x - LIB_W / 2, LIBRARY.y - LIB_H + 4, LIB_W, LIB_H - 4)} aria-label="공동 도서관 — 눌러서 열기" onClick={() => onPlace("library")}>
       </button>
 
+      {truck && <button type="button" className="scene-hit" style={pct(TRUCK_POS.x - TRUCK_W / 2, TRUCK_POS.y - TRUCK_H + 3, TRUCK_W, TRUCK_H - 4)} aria-label={truck === "night" ? "새벽 야식 트럭 — 눌러서 메뉴 보기" : "아침 밥차 — 눌러서 메뉴 보기"} onClick={() => onTruck?.()} />}
       <button type="button" className="scene-hit" style={pct(BOARD.x - 17, BOARD.y - 33, 34, 34)} aria-label="마을 게시판 — 눌러서 소식 보기" onClick={() => onPlace("board")} />
 
       {houses.map((h) => {
