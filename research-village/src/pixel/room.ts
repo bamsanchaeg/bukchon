@@ -257,6 +257,51 @@ export function roomGrid(opts: { slot: number; avatar: Avatar; inside: boolean; 
     for (const [dx, dy] of [[-3, 64], [2, 66], [-1, 70], [3, 73], [-4, 74], [1, 77], [-2, 66]]) px(g, cx + dx, dy, "#fff0b8");  // 맥주 속 기포
     rect(g, cx - 6, 63, 1, 10, "#fff3c4"); px(g, cx - 5, 62, "#fff3c4");                                                   // 유리 하이라이트
   }
+  if (st.extras.includes("dolsang")) {
+    // 아기 돌잔치 돌상: 벽에 HAPPY BIRTHDAY 가랜드, 바닥에 파스텔 돌상(1자 초 케이스·무지개떡·과일·돌잡이 용품)과 풍선
+    const FONT: Record<string, string[]> = {
+      A: ["010", "101", "111", "101", "101"], B: ["110", "101", "110", "101", "110"], D: ["110", "101", "101", "101", "110"],
+      H: ["101", "101", "111", "101", "101"], I: ["111", "010", "010", "010", "111"], P: ["110", "101", "110", "100", "100"],
+      R: ["110", "101", "110", "101", "101"], T: ["111", "010", "010", "010", "010"], Y: ["101", "101", "010", "010", "010"],
+    };
+    const flagColors = ["#ff9fb6", "#ffe58a", "#a5e3a0", "#a9d8f5", "#cdb8f2"];
+    const text = "HAPPY BIRTHDAY";
+    let fx0 = Math.round((ROOM_W - (13 * 8 + 4)) / 2), fi = 0;
+    const sag = (x: number) => Math.round(Math.sin(((x - 16) / (ROOM_W - 32)) * Math.PI) * 3);
+    for (let x = 14; x < ROOM_W - 14; x++) px(g, x, 2 + sag(x), "#8a6a4a");   // 줄
+    for (const ch of text) {
+      if (ch === " ") { fx0 += 4; continue; }
+      const c = flagColors[fi++ % flagColors.length], y0 = 3 + sag(fx0 + 3);
+      rect(g, fx0, y0, 7, 5, c); rect(g, fx0 + 1, y0 + 5, 5, 1, c); rect(g, fx0 + 2, y0 + 6, 3, 1, c); px(g, fx0 + 3, y0 + 7, c);
+      rect(g, fx0, y0, 7, 1, shade(c, 25));
+      FONT[ch].forEach((row, j) => { for (let i = 0; i < 3; i++) if (row[i] === "1") px(g, fx0 + 2 + i, y0 + 1 + j, "#3a2a33"); });
+      fx0 += 8;
+    }
+    // 풍선: 돌상 양옆에 묶어 둔다
+    const X0 = 12, Y0 = 60;
+    const balloon = (bx: number, by: number, c: string, sx: number, sy: number) => {
+      for (let t = 0; t <= 1; t += 0.05) px(g, sx + (bx - sx) * t, sy + (by + 5 - sy) * t, "#b9b5c2");   // 끈
+      disc(g, bx, by, 3.2, 4.2, shade(c, -30)); disc(g, bx, by - 0.3, 3, 4, c); px(g, bx - 1, by - 2, "#ffffff"); px(g, bx - 1, by - 1, "#ffffff"); px(g, bx, by + 5, shade(c, -30));
+    };
+    balloon(X0 - 3, Y0 - 12, "#ff9fb6", X0 + 2, Y0 + 8); balloon(X0 + 3, Y0 - 17, "#a9d8f5", X0 + 3, Y0 + 8); balloon(X0 + 36, Y0 - 12, "#ffe58a", X0 + 31, Y0 + 8); balloon(X0 + 41, Y0 - 5, "#a5e3a0", X0 + 32, Y0 + 8);
+    // 금박 숫자 1 풍선 (뒤쪽 가운데)
+    rect(g, X0 + 14, Y0 - 18, 6, 12, "#e8c24a"); rect(g, X0 + 14, Y0 - 18, 6, 1, "#fff0a8"); rect(g, X0 + 12, Y0 - 16, 2, 3, "#e8c24a"); rect(g, X0 + 11, Y0 - 14, 2, 2, "#e8c24a"); rect(g, X0 + 15, Y0 - 17, 1, 8, "#fff0a8");
+    for (let t = 0; t <= 1; t += 0.1) px(g, X0 + 17, Y0 - 6 + (Y0 + 8 - (Y0 - 6)) * t, "#b9b5c2");
+    // 돌상: 파스텔 천을 두른 낮은 상
+    rect(g, X0 + 1, Y0 + 9, 32, 9, "#bfe8d0"); rect(g, X0 + 1, Y0 + 9, 32, 1, "#9fd4b8"); rect(g, X0, Y0 + 8, 34, 2, "#e6f6ee");
+    for (let i = 0; i < 16; i++) px(g, X0 + 2 + i * 2, Y0 + 18, "#ffffff");
+    for (const dx of [6, 14, 22, 29]) px(g, X0 + dx, Y0 + 13, "#ffffff");
+    rect(g, X0 + 3, Y0 + 18, 28, 1, "#8e6f4a");
+    // 상 위: 가운데 1자 초를 꽂은 케이크, 무지개떡, 과일, 돌잡이 용품
+    rect(g, X0 + 12, Y0 + 4, 11, 4, "#fff3f6"); rect(g, X0 + 12, Y0 + 4, 11, 1, "#ff9fb6"); px(g, X0 + 14, Y0 + 5, "#ff9fb6"); px(g, X0 + 18, Y0 + 5, "#ff9fb6"); px(g, X0 + 21, Y0 + 5, "#ff9fb6");
+    rect(g, X0 + 11, Y0 + 7, 13, 1, "#e8d9b0");
+    rect(g, X0 + 17, Y0 + 1, 2, 3, "#ffe58a"); px(g, X0 + 17, Y0, "#ff7a2f"); px(g, X0 + 18, Y0 - 1, "#ffd23f");
+    ["#ff8a80", "#ffe58a", "#a5e3a0", "#a9d8f5"].forEach((c, i) => rect(g, X0 + 25, Y0 + 3 + i, 8, 1, c)); rect(g, X0 + 25, Y0 + 7, 8, 1, "#fffaf0");   // 무지개떡
+    disc(g, X0 + 6, Y0 + 6, 4, 1.8, "#f4efe4"); disc(g, X0 + 4, Y0 + 4, 1.5, 1.5, "#e0302a"); disc(g, X0 + 7, Y0 + 4, 1.5, 1.5, "#f2c14e"); disc(g, X0 + 9, Y0 + 5, 1.5, 1.5, "#8a6bd0"); px(g, X0 + 5, Y0 + 2, "#5fae4a");   // 과일
+    rect(g, X0 + 1, Y0 + 2, 2, 5, "#ffe58a"); px(g, X0 + 1, Y0 + 1, "#3a2a33"); px(g, X0 + 2, Y0 + 7, "#e0605a");   // 연필
+    rect(g, X0 + 22, Y0 + 5, 2, 3, "#5f8fd6"); px(g, X0 + 22, Y0 + 5, "#a9d8f5");                                    // 책
+    disc(g, X0 + 26, Y0 + 1.5, 1.3, 1.3, "#e8c24a"); px(g, X0 + 25, Y0 + 1, "#fff0a8");                              // 엽전
+  }
   if (st.extras.includes("globe")) {
     rect(g, 40, 76, 8, 1, WOOD_D); rect(g, 43, 71, 2, 5, WOOD_D);
     disc(g, 44, 66, 5, 5, "#5f8fd6"); px(g, 42, 64, "#62b866"); px(g, 43, 64, "#62b866"); px(g, 43, 65, "#62b866");
