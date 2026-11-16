@@ -9,6 +9,7 @@ export interface UpdateEntry {
 }
 
 export const UPDATES: UpdateEntry[] = [
+  { id: "2026-11-17-online", date: "11월 17일", title: "옆 마을에 가 있어도 접속 중이면 온라인으로 보여요", body: "" },
   { id: "2026-11-17-snacks", date: "11월 17일", title: "건네기 간식이 종류별로 나뉘었어요", body: "" },
   { id: "2026-11-17-newbadge", date: "11월 17일", title: "게시판에 새 글이 오면 N이 반짝여요", body: "" },
   { id: "2026-11-17-drag", date: "11월 17일", title: "책장과 연구 성과를 끌어서 순서를 바꿀 수 있어요", body: "" },
