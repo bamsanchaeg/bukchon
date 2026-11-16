@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useDiary } from "@/hooks/useDiary";
+import { useFavBooks } from "@/hooks/useFavBooks";
 import { usePlanner } from "@/hooks/usePlanner";
 import { useResearchNotes } from "@/hooks/useResearchNotes";
 import { useRoom } from "@/hooks/useRoom";
@@ -8,6 +9,7 @@ import { STATUS_META } from "@/lib/constants";
 import type { BoardTab, Resident, VillageInfo } from "@/lib/types";
 import ArchivePanel, { type OpenTarget } from "./ArchivePanel";
 import DiaryPanel from "./DiaryView";
+import FavoriteShelf from "./FavoriteShelf";
 import JournalCard from "./JournalCard";
 import { DeadlinePanel, TodoPanel } from "./Planner";
 import ResearchNotes from "./ResearchNotes";
@@ -16,12 +18,13 @@ import RoomCanvas from "./RoomCanvas";
 import LabDecorator from "./LabDecorator";
 import { Modal, Window } from "./ui";
 
-type Section = "journal" | "notes" | "diary" | "boards" | "archive";
+type Section = "journal" | "notes" | "diary" | "boards" | "shelf" | "archive";
 const SECTIONS: { id: Section; label: string }[] = [
   { id: "journal", label: "오늘의 일지" },
   { id: "notes", label: "연구노트" },
   { id: "diary", label: "다이어리" },
   { id: "boards", label: "화이트보드 · 책장" },
+  { id: "shelf", label: "좋아하는 책" },
   { id: "archive", label: "찾기 · 내보내기" },
 ];
 
@@ -33,6 +36,7 @@ export default function StudyRoomWork({
   const [section, setSection] = useState<Section>("journal");
   const [focus, setFocus] = useState(false);
   const room = useRoom(me.user_id, true);
+  const fav = useFavBooks(me.user_id);
   const [target, setTarget] = useState<OpenTarget | null>(null);
   const notes = useResearchNotes(me.user_id);
   const diary = useDiary();
@@ -47,7 +51,7 @@ export default function StudyRoomWork({
         <Modal title={roomView === "view" ? `${me.profile.display_name}의 연구실` : "내 연구실 꾸미기"} tone="butter" wide onClose={() => setRoomView(null)}>
           {roomView === "view" ? (
             <div className="space-y-3">
-              <RoomCanvas owner={me} inside={inside} studying={st === "focus"} boardCount={room.items.length} postitColors={room.postits.map((p) => p.color)} shelf={room.achievements.map((a) => a.kind)} gifts={room.gifts.map((g) => g.kind)} tips={room.tips.length}
+              <RoomCanvas owner={me} inside={inside} studying={st === "focus"} boardCount={room.items.length} postitColors={room.postits.map((p) => p.color)} shelf={room.achievements.map((a) => a.kind)} favs={fav.books ?? []} gifts={room.gifts.map((g) => g.kind)} tips={room.tips.length}
                 note={inside ? undefined : `지금은 ${STATUS_META[st].where}`} onPick={(t) => { onTab(t); setSection("boards"); setRoomView(null); }} />
               <p className="text-xs text-ink-soft">화이트보드나 책장을 누르면 그 화면으로 가요.</p>
               <div className="flex gap-1">
@@ -67,7 +71,7 @@ export default function StudyRoomWork({
         <div className="order-2 space-y-4 lg:order-1">
           <Window title={`${me.profile.display_name}의 연구실`} tone="butter">
             <button type="button" onClick={() => setRoomView("view")} aria-label="연구실 크게 보기" className="block w-full cursor-pointer">
-              <RoomCanvas owner={me} inside={inside} studying={st === "focus"} boardCount={room.items.length} postitColors={room.postits.map((p) => p.color)} shelf={room.achievements.map((a) => a.kind)} gifts={room.gifts.map((g) => g.kind)} tips={room.tips.length}
+              <RoomCanvas owner={me} inside={inside} studying={st === "focus"} boardCount={room.items.length} postitColors={room.postits.map((p) => p.color)} shelf={room.achievements.map((a) => a.kind)} favs={fav.books ?? []} gifts={room.gifts.map((g) => g.kind)} tips={room.tips.length}
                 note={inside ? undefined : `지금은 ${STATUS_META[st].where}`} />
             </button>
             <p className="px-2 pt-1 text-center text-xs text-ink-soft">그림을 누르면 크게 보고 꾸밀 수 있어요</p>
@@ -98,6 +102,7 @@ export default function StudyRoomWork({
             {section === "notes" && <ResearchNotes data={notes} userId={me.user_id} openId={target?.kind === "note" ? target.key : undefined} />}
             {section === "diary" && <DiaryPanel myId={me.user_id} entries={diary.entries} loaded={diary.loaded} reload={diary.reload} openId={target?.kind === "diary" ? target.key : undefined} />}
             {section === "archive" && <ArchivePanel userId={me.user_id} onOpen={(t) => { setTarget(t); setSection(t.kind === "journal" ? "journal" : t.kind === "note" ? "notes" : "diary"); void notes.reload(); void diary.reload(); }} />}
+            {section === "shelf" && <FavoriteShelf books={fav.books} reload={fav.reload} editable bare ownerName={me.profile.display_name} />}
             {section === "boards" && <RoomBoards owner={me} myId={me.user_id} residents={residents} room={room} tab={tab} onTab={onTab} />}
           </div>
         </Window>

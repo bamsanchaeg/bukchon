@@ -148,6 +148,7 @@ export interface Achievement {
   kind: AchievementKind;
   year: number | null;
   link_url: string;
+  sort_order?: number;
   created_at: string;
 }
 export interface AppNotification {
@@ -155,7 +156,7 @@ export interface AppNotification {
   user_id: string;
   village_id: string;
   actor_id: string;
-  kind: "postit" | "comment" | "chat_request" | "meeting" | "gesture" | "gift" | "book_tip" | "journal_reaction" | "journal_comment" | "cheer" | "nudge";
+  kind: "postit" | "comment" | "chat_request" | "meeting" | "gesture" | "gift" | "book_tip" | "journal_reaction" | "journal_comment" | "cheer" | "nudge" | "moving_cake" | "moving_thanks";
   room_owner_id: string;
   summary: string;
   created_at: string;
@@ -204,6 +205,7 @@ export interface Book {
   topic: string;
   status: "writing" | "finished";
   created_by: string | null;
+  sort_order?: number;
   created_at: string;
 }
 export interface BookEntry {

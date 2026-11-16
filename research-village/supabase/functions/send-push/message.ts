@@ -12,6 +12,8 @@ const TEXT: Record<string, string> = {
   cheer: "마감을 응원해요. 파이팅!",
   nudge: "마감을 챙겨 보래요",
   message: "새 메시지를 보냈어요",
+  moving_cake: "이사 떡을 돌렸어요",
+  moving_thanks: "이사 떡을 잘 먹겠대요",
 };
 
 export function pushText(kind: string, actor: string): { title: string; body: string; tag: string } {

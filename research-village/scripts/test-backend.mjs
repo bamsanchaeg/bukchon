@@ -541,6 +541,81 @@ await t("마을 건물(도서관 모양)은 마을 장만 바꿀 수 있다", as
   assert.ok((await a.c.from("villages").update({ library_style: "castle" }).eq("id", village)).error);
 });
 
+await t("연구실 좋아하는 책장: 주인만 꽂고, 이웃은 구경, 한 단 14권·모두 40권", async () => {
+  const fb = (u) => u.c.from("favorite_books");
+  const b1 = ok(await fb(m1).insert({ title: "토지", author: "박경리", note: "몇 번을 읽어도", color: "brown", shelf: 2 }).select().single());
+  assert.equal(b1.shelf, 2); assert.equal(b1.owner_id, m1.id);
+  assert.equal(ok(await fb(m2).select("*")).length, 1);                                                     // 연구실을 볼 수 있는 이웃은 구경한다
+  assert.equal(ok(await fb(outside[0]).select("*")).length, 0);                                             // 마을 밖은 못 본다
+  assert.ok((await fb(m1).insert({ title: "   ", shelf: 1 })).error);                                       // 빈 제목 불가
+  assert.ok((await fb(m1).insert({ title: "5단", shelf: 5 })).error);                                       // 단은 1~4
+  assert.ok((await fb(m1).insert({ title: "이상한 색", shelf: 1, color: "rainbow" })).error);
+  assert.ok((await fb(m1).insert({ title: "남의 책장", shelf: 1, owner_id: m2.id })).error);                // 주인은 정할 수 없다
+  // 남의 책장은 이웃도 마을 장도 못 고친다
+  for (const u of [m2, a]) {
+    assert.equal((await fb(u).update({ shelf: 3 }).eq("id", b1.id).select()).data.length, 0);
+    assert.equal((await fb(u).delete().eq("id", b1.id).select()).data.length, 0);
+  }
+  assert.equal(ok(await fb(m1).update({ shelf: 3, note: "다시 읽는 중" }).eq("id", b1.id).select()).length, 1);   // 내 책은 단을 옮긴다
+  assert.equal(ok(await fb(m1).update({ shelf: 2 }).eq("id", b1.id).select()).length, 1);
+  // 한 단 14권
+  for (let i = 0; i < 13; i++) ok(await fb(m1).insert({ title: `책 ${i}`, shelf: 2 }));
+  assert.match((await fb(m1).insert({ title: "열다섯 번째", shelf: 2 })).error.message, /shelf_full/);
+  const loose = ok(await fb(m1).insert({ title: "옮길 책", shelf: 1 }).select().single());
+  assert.match((await fb(m1).update({ shelf: 2 }).eq("id", loose.id)).error.message, /shelf_full/);          // 가득 찬 단으로는 못 옮긴다
+  // 모두 합쳐 40권
+  for (let i = 0; i < 14; i++) ok(await fb(m1).insert({ title: `셋째 단 ${i}`, shelf: 3 }));
+  for (let i = 0; i < 11; i++) ok(await fb(m1).insert({ title: `첫째 단 ${i}`, shelf: 1 }));
+  assert.match((await fb(m1).insert({ title: "마흔한 번째", shelf: 4 })).error.message, /too_many_books/);
+  ok(await fb(m1).delete().eq("id", loose.id));
+  ok(await fb(m2).insert({ title: "다른 사람 책장은 따로 센다", shelf: 1 }));
+  assert.equal(ok(await fb(m1).select("*").eq("title", "다른 사람 책장은 따로 센다")).length, 1);            // 이웃의 책장도 구경 가능
+});
+
+await t("끌어서 순서 바꾸기: 도서관 책(주민 누구나), 연구 성과·좋아하는 책(주인만)", async () => {
+  const mkb = async (title) => ok(await m1.c.from("books").insert({ village_id: village, title }).select().single());
+  const [x, y, z] = [await mkb("순서 X"), await mkb("순서 Y"), await mkb("순서 Z")];
+  ok(await m2.c.rpc("reorder_books", { p_village: village, p_ids: [z.id, x.id, y.id] }));                       // 주민 누구나 책장을 정리한다
+  const ordered = ok(await m3.c.from("books").select("id,title,sort_order").in("id", [x.id, y.id, z.id]).order("sort_order"));
+  assert.deepEqual(ordered.map((b) => b.title), ["순서 Z", "순서 X", "순서 Y"]);
+  assert.ok((await outside[0].c.rpc("reorder_books", { p_village: village, p_ids: [x.id, y.id, z.id] })).error);   // 마을 밖은 못 한다
+  assert.equal(ok(await m2.c.from("books").select("sort_order").eq("id", x.id).single()).sort_order, 2);
+  assert.equal((await m2.c.from("books").update({ sort_order: 9 }).eq("id", x.id).select()).data?.length ?? 0, 0);   // 순서 칸을 직접 고치는 건 만든 사람·마을 장만
+  // 연구 성과: 주인만
+  const ach = ok(await m1.c.from("achievements").insert({ title: "성과 1", kind: "article" }).select().single());
+  assert.equal(ok(await m1.c.from("achievements").update({ sort_order: 3 }).eq("id", ach.id).select()).length, 1);
+  assert.equal((await m2.c.from("achievements").update({ sort_order: 1 }).eq("id", ach.id).select()).data.length, 0);
+  // 좋아하는 책: 주인만, 단 안의 순서
+  const f1 = ok(await m1.c.from("favorite_books").insert({ title: "순서 책 1", shelf: 1 }).select().single());
+  assert.equal(ok(await m1.c.from("favorite_books").update({ sort_order: 5, shelf: 1 }).eq("id", f1.id).select())[0].sort_order, 5);
+  assert.equal((await m2.c.from("favorite_books").update({ sort_order: 1 }).eq("id", f1.id).select()).data.length, 0);
+});
+
+await t("이사 떡 돌리기: 마을마다 한 번, 이웃 모두에게, 잘 먹을게요 답례", async () => {
+  const nf = async (u, kind) => ok(await u.c.from("notifications").select("*").eq("kind", kind));
+  const members = ok(await a.c.from("village_members").select("user_id"));
+  const others = members.filter((m) => m.user_id !== m1.id);
+  assert.equal(ok(await m1.c.rpc("give_moving_cakes", { p_village: village, p_kind: "songpyeon", p_note: "새로 이사 왔어요" })), others.length);
+  assert.match((await m1.c.rpc("give_moving_cakes", { p_village: village, p_kind: "siru", p_note: "" })).error.message, /already_given/);   // 마을마다 한 번
+  assert.ok((await m2.c.rpc("give_moving_cakes", { p_village: village, p_kind: "kimbap", p_note: "" })).error);                        // 정해진 떡만
+  assert.ok((await outside[0].c.rpc("give_moving_cakes", { p_village: village, p_kind: "siru", p_note: "" })).error);                  // 마을 밖은 못 돌린다
+  for (const u of [a, m2]) {
+    const g = ok(await u.c.from("gifts").select("kind,note,from_user").eq("from_user", m1.id).eq("kind", "songpyeon"));
+    assert.equal(g.length, 1); assert.equal(g[0].kind, "songpyeon"); assert.equal(g[0].note, "새로 이사 왔어요");
+    const n = await nf(u, "moving_cake");
+    assert.equal(n.length, 1); assert.equal(n[0].actor_id, m1.id); assert.equal(n[0].summary, "songpyeon:새로 이사 왔어요");
+  }
+  assert.equal((await nf(m1, "moving_cake")).length, 0);                                                                       // 나에게는 안 간다
+  assert.equal(ok(await m2.c.from("moving_cakes").select("*")).length, 0);                                                          // 남이 돌렸는지는 기록 표에서 안 보인다
+  assert.equal(ok(await m1.c.from("moving_cakes").select("*")).length, 1);
+  // 답례: 떡을 돌린 사람에게만, 같은 사람에게 한 번
+  ok(await m2.c.rpc("thank_moving_cake", { p_village: village, p_target: m1.id }));
+  assert.equal((await nf(m1, "moving_thanks")).length, 1);
+  assert.match((await m2.c.rpc("thank_moving_cake", { p_village: village, p_target: m1.id })).error.message, /already_thanked/);
+  assert.match((await m1.c.rpc("thank_moving_cake", { p_village: village, p_target: m2.id })).error.message, /no_cake/);
+  assert.ok((await outside[0].c.rpc("thank_moving_cake", { p_village: village, p_target: m1.id })).error);
+});
+
 await t("소원구슬: 주민만 쓰고, 상태는 못 바꾸고, 하루 3개까지", async () => {
   const w1 = ok(await m1.c.from("wishes").insert({ village_id: village, body: "광장에 모닥불이 있으면 좋겠어요" }).select().single());
   assert.equal(w1.status, "new"); assert.equal(w1.author_id, m1.id);

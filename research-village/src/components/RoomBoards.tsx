@@ -10,6 +10,9 @@ import PublicJournal from "./PublicJournal";
 import PublicDeadlines from "./PublicDeadlines";
 import { TipBox } from "./GiveBox";
 import { giftOf } from "@/lib/social";
+import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { SortableItem, useSortSensors } from "./Sortable";
 import { Notice } from "./ui";
 
 type Room = ReturnType<typeof useRoom>;
@@ -154,6 +157,12 @@ export default function RoomBoards({
     const year = form.year ? Number(form.year) : null;
     if (await run(sb.from("achievements").insert({ owner_id: myId, title: form.title.trim(), kind: form.kind, year, link_url: link }))) setForm({ title: "", kind: "article", year: "", link: "" });
   };
+  const sensors = useSortSensors();
+  const onAchDrag = (e: DragEndEvent) => {
+    if (!e.over || e.active.id === e.over.id) return;
+    const ids = room.achievements.map((a) => a.id);
+    void room.reorderAchievements(arrayMove(ids, ids.indexOf(String(e.active.id)), ids.indexOf(String(e.over.id))));
+  };
   const kindLabel = (a: Achievement) => ACHIEVEMENT_KINDS.find((k) => k.id === a.kind);
   const shelf = (
     <div className="space-y-3">
@@ -201,9 +210,12 @@ export default function RoomBoards({
         </section>
       )}
       {room.loaded && room.achievements.length === 0 && room.tips.length === 0 && <p className="py-3 text-center text-sm text-ink-soft">{isOwner ? "아직 책장이 비어 있어요." : "아직 꽂힌 책이 없어요."}</p>}
+      {isOwner && room.achievements.length > 1 && <p className="text-xs text-ink-soft">끌어서 순서를 바꿀 수 있어요. (폰은 꾹 눌러서 끌어요)</p>}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onAchDrag}>
+      <SortableContext items={room.achievements.map((a) => a.id)} strategy={verticalListSortingStrategy}>
       <ul className="space-y-2">
         {room.achievements.map((a) => (
-          <li key={a.id} className="card flex items-start gap-2 p-2 text-sm">
+          <SortableItem as="li" key={a.id} id={a.id} disabled={!isOwner} className="card flex items-start gap-2 p-2 text-sm">
             <span className="mt-1 inline-block h-6 w-3 shrink-0" style={{ background: kindLabel(a)?.color }} aria-hidden />
             <div className="min-w-0 flex-1">
               <p className="break-words">{a.title}</p>
@@ -215,9 +227,11 @@ export default function RoomBoards({
               )}
             </div>
             {isOwner && <button type="button" className="btn btn-sm btn-danger" onClick={() => window.confirm("책장에서 뺄까요?") && void run(sb.from("achievements").delete().eq("id", a.id))}>빼기</button>}
-          </li>
+          </SortableItem>
         ))}
       </ul>
+      </SortableContext>
+      </DndContext>
     </div>
   );
 

@@ -4,6 +4,9 @@ import { errorMessage, supabase } from "@/lib/supabase";
 import { clockLabel, relativeTime } from "@/lib/time";
 import type { useLibrary } from "@/hooks/useLibrary";
 import type { Book, Resident } from "@/lib/types";
+import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, arrayMove, rectSortingStrategy } from "@dnd-kit/sortable";
+import { SortableItem, useSortSensors } from "./Sortable";
 import { Notice, Window } from "./ui";
 
 type Lib = ReturnType<typeof useLibrary>;
@@ -26,6 +29,12 @@ export default function LibraryView({
     return !error;
   };
   const sb = supabase();
+  const sensors = useSortSensors();
+  const onBookDrag = (e: DragEndEvent) => {
+    if (!e.over || e.active.id === e.over.id) return;
+    const ids = lib.books.map((b) => b.id);
+    void lib.reorderBooks(arrayMove(ids, ids.indexOf(String(e.active.id)), ids.indexOf(String(e.over.id))));
+  };
 
   // ── 새 책 ──
   const [nb, setNb] = useState({ title: "", topic: "" });
@@ -57,15 +66,22 @@ export default function LibraryView({
             <div className="space-y-3 p-3">
               <div className="px-box flex min-h-[180px] flex-wrap items-end gap-1 p-2" style={{ background: "linear-gradient(#6f4a30 0 0) bottom / 100% 10px no-repeat, #8a5f3c", ["--bd" as string]: "#3a2a33" }} role="group" aria-label="책장">
                 {lib.loaded && lib.books.length === 0 && <p className="w-full pb-4 text-center text-xs text-[#fff8e4]">아직 책이 없어요.</p>}
+                {lib.books.length > 1 && <p className="sr-only">책을 끌어서 순서를 바꿀 수 있어요. 키보드는 책에 초점을 두고 스페이스 키를 누른 뒤 화살표로 옮기세요.</p>}
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onBookDrag}>
+                <SortableContext items={lib.books.map((b) => b.id)} strategy={rectSortingStrategy}>
                 {lib.books.map((b) => {
                   const n = lib.entries.filter((e) => e.book_id === b.id).length;
                   return (
-                    <button key={b.id} type="button" aria-pressed={bookId === b.id} aria-label={`${b.title} — ${n}편${b.status === "finished" ? ", 완결" : ""}`} onClick={() => setBookId(b.id)}
+                    <SortableItem key={b.id} id={b.id} className="self-end">
+                    <button type="button" aria-pressed={bookId === b.id} aria-label={`${b.title} — ${n}편${b.status === "finished" ? ", 완결" : ""}`} onClick={() => setBookId(b.id)}
                       className="px-box mb-2 flex w-9 items-center justify-center whitespace-nowrap py-2 text-[12px] leading-none" style={{ height: 116 + Math.min(n, 12) * 5, background: spineColor(b.id), color: "#3a2a33", writingMode: "vertical-rl", ["--px" as string]: "1px", ["--bd" as string]: bookId === b.id ? "#fff8e4" : "#3a2a33" }}>
                       <span className="max-h-full overflow-hidden">{b.title}</span>
                     </button>
+                    </SortableItem>
                   );
                 })}
+                </SortableContext>
+                </DndContext>
               </div>
               <form onSubmit={createBook} className="card space-y-1 p-2">
                 <label className="label" htmlFor="nb-title">새 책 만들기</label>

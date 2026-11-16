@@ -1,8 +1,10 @@
 "use client";
 import { STATUS_META } from "@/lib/constants";
+import { useFavBooks } from "@/hooks/useFavBooks";
 import { useRoom } from "@/hooks/useRoom";
 import type { BoardTab, Resident } from "@/lib/types";
 import { useState } from "react";
+import FavoriteShelf from "./FavoriteShelf";
 import { GiftBox } from "./GiveBox";
 import RoomBoards from "./RoomBoards";
 import RoomCanvas from "./RoomCanvas";
@@ -14,6 +16,7 @@ export default function RoomVisit({
 }: { owner: Resident; myId: string; residents: Resident[]; tab: BoardTab; onTab: (t: BoardTab) => void; onBack: () => void; onProfile: () => void; give: { onGift: React.ComponentProps<typeof GiftBox>["onGift"]; onTip: (title: string, note: string) => Promise<string | null> | string | null } }) {
   const [giving, setGiving] = useState(false);
   const room = useRoom(owner.user_id, false);
+  const fav = useFavBooks(owner.user_id);
   const meta = STATUS_META[owner.shown];
   const name = owner.profile.display_name;
   const inRoom = owner.shown === "focus";
@@ -26,14 +29,17 @@ export default function RoomVisit({
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
         <Window title={`${name}의 연구실`} tone="butter">
           <RoomCanvas
-            owner={owner} inside={inRoom} studying={inRoom} boardCount={room.items.length} postitColors={room.postits.map((p) => p.color)} shelf={room.achievements.map((a) => a.kind)} gifts={room.gifts.map((g) => g.kind)} tips={room.tips.length}
+            owner={owner} inside={inRoom} studying={inRoom} boardCount={room.items.length} postitColors={room.postits.map((p) => p.color)} shelf={room.achievements.map((a) => a.kind)} favs={fav.books ?? []} gifts={room.gifts.map((g) => g.kind)} tips={room.tips.length}
             note={inRoom ? undefined : `${name}님은 ${owner.shown === "offline" ? "자리에 없어요" : meta.where}`} onPick={onTab} onDesk={() => setGiving(true)}
           />
           <p className="px-2 pb-1 pt-1 text-center text-xs text-ink-soft">책상을 누르면 커피나 간식을 올려 줄 수 있어요</p>
         </Window>
-        <Window title="구경하고 남기기" tone="sky">
-          <RoomBoards owner={owner} myId={myId} residents={residents} room={room} tab={tab} onTab={onTab} onTip={give.onTip} />
-        </Window>
+        <div className="space-y-5">
+          <Window title="구경하고 남기기" tone="sky">
+            <RoomBoards owner={owner} myId={myId} residents={residents} room={room} tab={tab} onTab={onTab} onTip={give.onTip} />
+          </Window>
+          <FavoriteShelf books={fav.books} reload={fav.reload} editable={false} ownerName={name} />
+        </div>
       </div>
       {giving && (
         <Modal title={`${name}님 책상에 건네기`} tone="mint" onClose={() => setGiving(false)}>

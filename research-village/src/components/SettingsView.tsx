@@ -8,6 +8,7 @@ import HousePicker from "./HousePicker";
 import ProfileForm from "./ProfileForm";
 import { useFold } from "@/hooks/useFold";
 import PushSettings from "./PushSettings";
+import MovingCakes from "./MovingCakes";
 import { UPDATES } from "@/lib/updates";
 import PixelArt from "./PixelArt";
 import { libraryGrid, type LibraryStyle } from "@/pixel/village";
@@ -198,6 +199,7 @@ export default function SettingsView({
             ))}
           </ul>
         </Window>
+        <MovingCakes villageId={village.id} myId={me.user_id} neighbors={residents.length - 1} compact />
         <Window title={`집 꾸미기 · ${village.name}`} icon="" tone="mint" controls={foldHouse}>
           <div className="space-y-3 p-3">
             <HousePicker value={houseTypeOf(me.house.style)} onChange={(t) => void setHouseType(t)} />
