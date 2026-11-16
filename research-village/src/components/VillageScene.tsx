@@ -5,6 +5,7 @@ import { currentPhase, currentSeason, type DayPhase, type Season } from "@/lib/t
 import type { House, Resident } from "@/lib/types";
 import { bake } from "@/pixel/core";
 import { fxGrid } from "@/pixel/fx";
+import { ORB_H, ORB_POS, ORB_W, orbPedestalGrid, orbSphereGrid } from "@/pixel/orb";
 import { RACCOON_POS, TRUCK_AWNING_Y, TRUCK_H, TRUCK_POS, TRUCK_REST_SPOTS, TRUCK_W, TRUCK_WINDOW, ladleGrid, raccoonGrid, truckGrid } from "@/pixel/truck";
 import { AV_CX, AV_H, avatarGrid } from "@/pixel/avatar";
 import {
@@ -34,13 +35,15 @@ export interface SceneProps {
   onTruck?: () => void;
   /** 도서관 건물 모양(마을 장이 바꾼다) */
   libraryStyle?: LibraryStyle;
+  /** 소원구슬을 눌렀을 때 */
+  onOrb?: () => void;
   /** 연구실 앞 책상을 눌렀을 때 */
   onDesk: (slot: number) => void;
   /** 이웃에게 던지기 (학위논문·마감 알림·과자). id 가 바뀔 때마다 한 번 재생된다 */
   fx?: { id: number; kind: string; from: string; to: string } | null;
 }
 
-export default function VillageScene({ houses, residents, myId, onCharacter, onHouse, onPlace, onDesk, fx, truck, onTruck, libraryStyle = "classic" }: SceneProps) {
+export default function VillageScene({ houses, residents, myId, onCharacter, onHouse, onPlace, onDesk, fx, truck, onTruck, libraryStyle = "classic", onOrb }: SceneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const tagRefs = useRef(new Map<string, HTMLButtonElement>());
@@ -158,6 +161,22 @@ export default function VillageScene({ houses, residents, myId, onCharacter, onH
       items.push({ y: PLAZA.y + 30, draw: () => b.drawImage(bench, PLAZA.x - 44, PLAZA.y + 18) });
       items.push({ y: PLAZA.y + 30, draw: () => b.drawImage(bench, PLAZA.x + 20, PLAZA.y + 18) });
       items.push({ y: BOARD.y, draw: () => { shadow(BOARD.x, BOARD.y, 14); b.drawImage(board, BOARD.x - 17, BOARD.y - 33); } });
+      items.push({
+        y: ORB_POS.y,
+        draw: () => {
+          shadow(ORB_POS.x, ORB_POS.y, 8);
+          b.drawImage(sp("orb-ped", () => orbPedestalGrid()), ORB_POS.x - ORB_W / 2, ORB_POS.y - 12);
+          const float = Math.round(Math.sin(tick * 0.09) * 1.5);
+          b.drawImage(sp("orb-sphere", () => orbSphereGrid()), ORB_POS.x - 8, ORB_POS.y - ORB_H + float);
+          // 구슬 둘레를 도는 작은 별빛
+          for (let i = 0; i < 4; i++) {
+            const a = tick * 0.05 + (i * Math.PI) / 2, tw = (slow + i) % 3;
+            if (tw === 0) continue;
+            b.fillStyle = tw === 1 ? "#fff6b0" : "#ffffff";
+            b.fillRect(Math.round(ORB_POS.x + Math.cos(a) * 12), Math.round(ORB_POS.y - ORB_H / 2 - 2 + float + Math.sin(a) * 6), 1, 1);
+          }
+        },
+      });
       if (truck) {
         const tx = TRUCK_POS.x - TRUCK_W / 2, ty = TRUCK_POS.y - TRUCK_H + 3;
         items.push({
@@ -270,6 +289,17 @@ export default function VillageScene({ houses, residents, myId, onCharacter, onH
       }
       items.sort((a, c) => a.y - c.y);
       for (const it of items) it.draw();
+      {
+        // 소원구슬의 은은한 보랏빛 번짐
+        b.globalCompositeOperation = "lighter";
+        const gx = ORB_POS.x, gy = ORB_POS.y - ORB_H / 2 - 1, gr = b.createRadialGradient(gx, gy, 1, gx, gy, 20);
+        const ga = night ? 0.5 : 0.22 + 0.06 * Math.sin(tick * 0.07);
+        gr.addColorStop(0, `rgb(170 150 255 / ${ga})`);
+        gr.addColorStop(1, "rgb(170 150 255 / 0)");
+        b.fillStyle = gr;
+        b.fillRect(gx - 20, gy - 20, 40, 40);
+        b.globalCompositeOperation = "source-over";
+      }
 
       // ── 던지기: 보낸 사람에게서 받은 사람에게 날아가 별이 튄다 ──
       const f = fxRef.current;
@@ -350,6 +380,7 @@ export default function VillageScene({ houses, residents, myId, onCharacter, onH
       <button type="button" className="scene-hit" style={pct(LIBRARY.x - LIB_W / 2, LIBRARY.y - LIB_H + 4, LIB_W, LIB_H - 4)} aria-label="공동 도서관 — 눌러서 열기" onClick={() => onPlace("library")}>
       </button>
 
+      <button type="button" className="scene-hit" style={pct(ORB_POS.x - 10, ORB_POS.y - ORB_H, 20, ORB_H + 1)} aria-label="소원구슬 — 눌러서 소원 빌기" onClick={() => onOrb?.()} />
       {truck && <button type="button" className="scene-hit" style={pct(TRUCK_POS.x - TRUCK_W / 2, TRUCK_POS.y - TRUCK_H + 3, TRUCK_W, TRUCK_H - 4)} aria-label={truck === "night" ? "새벽 야식 트럭 — 눌러서 메뉴 보기" : "아침 밥차 — 눌러서 메뉴 보기"} onClick={() => onTruck?.()} />}
       <button type="button" className="scene-hit" style={pct(BOARD.x - 17, BOARD.y - 33, 34, 34)} aria-label="마을 게시판 — 눌러서 소식 보기" onClick={() => onPlace("board")} />
 

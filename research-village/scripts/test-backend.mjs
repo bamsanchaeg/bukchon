@@ -541,6 +541,29 @@ await t("마을 건물(도서관 모양)은 마을 장만 바꿀 수 있다", as
   assert.ok((await a.c.from("villages").update({ library_style: "castle" }).eq("id", village)).error);
 });
 
+await t("소원구슬: 주민만 쓰고, 상태는 못 바꾸고, 하루 3개까지", async () => {
+  const w1 = ok(await m1.c.from("wishes").insert({ village_id: village, body: "광장에 모닥불이 있으면 좋겠어요" }).select().single());
+  assert.equal(w1.status, "new"); assert.equal(w1.author_id, m1.id);
+  assert.equal(ok(await m2.c.from("wishes").select("*")).length, 1);                                  // 같은 마을 주민은 목록을 본다
+  assert.equal(ok(await outside[0].c.from("wishes").select("*")).length, 0);                          // 마을 밖은 못 본다
+  assert.ok((await outside[0].c.from("wishes").insert({ village_id: village, body: "침입" })).error);
+  assert.ok((await m1.c.from("wishes").insert({ village_id: village, body: "   " })).error);          // 빈 소원 불가
+  assert.ok((await m1.c.from("wishes").insert({ village_id: village, body: "가짜 상태", status: "done" })).error); // 상태는 정할 수 없다
+  assert.equal((await m1.c.from("wishes").update({ status: "done", reply: "내가 처리함" }).eq("id", w1.id).select()).data?.length ?? 0, 0);
+  assert.equal((await m2.c.from("wishes").delete().eq("id", w1.id).select()).data.length, 0);          // 남의 소원은 못 지운다
+  ok(await m1.c.from("wishes").insert({ village_id: village, body: "두 번째 소원" }));
+  ok(await m1.c.from("wishes").insert({ village_id: village, body: "세 번째 소원" }));
+  assert.match((await m1.c.from("wishes").insert({ village_id: village, body: "네 번째 소원" })).error.message, /too_many_wishes/);
+  ok(await m2.c.from("wishes").insert({ village_id: village, body: "다른 사람은 따로 센다" }));
+  assert.equal((await m1.c.from("wishes").delete().eq("id", w1.id).select()).data.length, 1);          // 대기 중인 내 소원은 거둘 수 있다
+  if (process.env.SUPABASE_SERVICE_KEY) {
+    const sadmin = createClient(url, process.env.SUPABASE_SERVICE_KEY, { auth: { persistSession: false } });
+    await sadmin.from("wishes").update({ status: "doing" }).eq("author_id", m2.id);
+    const mine = ok(await m2.c.from("wishes").select("id").eq("author_id", m2.id));
+    assert.equal((await m2.c.from("wishes").delete().eq("id", mine[0].id).select()).data.length, 0);   // 처리 중인 소원은 못 거둔다
+  }
+});
+
 await t("관리자가 주민을 내보내면 집이 비고 기록이 사라진다", async () => {
   assert.ok((await m2.c.rpc("remove_member", { p_village: village, p_user: m3.id })).error);
   ok(await a.c.rpc("remove_member", { p_village: village, p_user: m3.id }));

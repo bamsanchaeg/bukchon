@@ -3,6 +3,7 @@ import { useFold } from "@/hooks/useFold";
 import { syncPush } from "@/lib/push";
 import { activeTruckId, truckFromId } from "@/lib/trucks";
 import TruckDialog from "./TruckDialog";
+import WishDialog from "./WishDialog";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { useAuth } from "@/hooks/useAuth";
 import type { useVillage } from "@/hooks/useVillage";
@@ -62,6 +63,7 @@ export default function VillageApp({ auth, v, onAddVillage, pendingOpen, onPendi
   );
   const truck = truckId ? truckFromId(truckId) : null;
   const [truckOpen, setTruckOpen] = useState(false);
+  const [wishOpen, setWishOpen] = useState(false);
   const foldProfile = useFold("home-profile");
   const foldChat = useFold("home-chat");
 const me = v.me!;
@@ -300,6 +302,7 @@ const me = v.me!;
                     onCharacter={setSelected}
                     truck={truck?.kind ?? null}
                     libraryStyle={village.library_style}
+                    onOrb={() => setWishOpen(true)}
                     onTruck={() => setTruckOpen(true)}
                     onHouse={(slot) => {
                       const owner = v.residents.find((r) => r.slot === slot);
@@ -367,6 +370,7 @@ const me = v.me!;
         <ProfileModal resident={selectedResident} isMe={selectedResident.user_id === me.user_id} onClose={() => setSelected(null)} onEditProfile={() => { setSelected(null); setView("settings"); }} onVisit={() => visit(selectedResident.user_id)} onChat={() => void startChat(selectedResident.user_id)} give={give(selectedResident.user_id)} />
       )}
       {newsOpen && <PlazaNews villageId={village.id} myId={me.user_id} isAdmin={me.role === "admin"} residents={v.residents} onClose={() => setNewsOpen(false)} />}
+      {wishOpen && <WishDialog villageId={village.id} myId={me.user_id} residents={v.residents} onClose={() => setWishOpen(false)} />}
       {truck && truckOpen && <TruckDialog key={truck.id} truck={truck} onClose={() => setTruckOpen(false)} />}
       {toast && !(toast.kind === "notif" && view === "alerts") && !(toast.kind === "chat" && view === "chat" && chatId === toast.conv.id) && (
         <div role="status" className="window fixed bottom-4 right-4 z-50 max-w-xs" style={{ background: "#fff3c4" }}>
