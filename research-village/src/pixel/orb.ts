@@ -1,7 +1,7 @@
 import { disc, grid, outline, px, rect, type Grid } from "./core";
 
 /** 광장 한쪽에 서 있는 소원구슬 (돌받침 위에 떠 있는 보랏빛 구슬) */
-export const ORB_POS = { x: 312, y: 80 };
+export const ORB_POS = { x: 288, y: 84 };
 export const ORB_W = 20;
 export const ORB_H = 28;
 
