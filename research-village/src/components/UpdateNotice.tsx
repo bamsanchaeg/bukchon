@@ -14,7 +14,7 @@ export default function UpdateNotice({ userId }: { userId: string }) {
           {list.map((u) => (
             <li key={u.id} className="card px-3 py-2">
               <p className="font-display">{u.title} <span className="text-xs text-ink-soft">· {u.date}</span></p>
-              <p className="text-sm text-ink-soft">{u.body}</p>
+              {u.body && <p className="text-sm text-ink-soft">{u.body}</p>}
             </li>
           ))}
         </ul>

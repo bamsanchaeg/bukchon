@@ -327,6 +327,14 @@ await t("도서관: 공동 집필 책에 이어 쓰기, 회의 등록", async ()
   assert.equal((await m3.c.from("book_entries").delete().eq("id", es[1].id).select()).data.length, 0);
   assert.equal((await m2.c.from("books").update({ status: "finished" }).eq("id", book.id).select()).data.length, 0); // 만든 사람만
   ok(await m1.c.from("books").update({ status: "finished" }).eq("id", book.id));
+  // 제목·주제 고치기: 만든 사람과 마을 장만
+  assert.equal((await m2.c.from("books").update({ title: "남이 바꾼 제목" }).eq("id", book.id).select()).data.length, 0);
+  assert.equal(ok(await m1.c.from("books").update({ title: "조선 서적 유통사(개정)", topic: "방각본·세책점·필사" }).eq("id", book.id).select()).length, 1);
+  assert.equal(ok(await a.c.from("books").update({ title: "조선 서적 유통사 (마을 장이 고침)" }).eq("id", book.id).select()).length, 1);
+  assert.equal(ok(await m2.c.from("books").select("title,topic").eq("id", book.id).single()).title, "조선 서적 유통사 (마을 장이 고침)");
+  assert.ok((await m1.c.from("books").update({ title: "   " }).eq("id", book.id)).error);                                   // 빈 제목 불가
+  assert.ok((await a.c.from("books").update({ created_by: a.id }).eq("id", book.id)).error);                               // 만든 사람은 못 바꾼다
+  ok(await m1.c.from("books").update({ title: "조선 서적 유통사" }).eq("id", book.id));
   assert.ok((await m2.c.from("book_entries").insert({ book_id: book.id, village_id: village, body: "완결 후" })).error);
   assert.equal((await m1.c.from("book_entries").delete().eq("id", es[1].id).select()).data.length, 1); // 책 만든 사람은 정리 가능
   // Zoom 회의
