@@ -541,6 +541,34 @@ await t("마을 건물(도서관 모양)은 마을 장만 바꿀 수 있다", as
   assert.ok((await a.c.from("villages").update({ library_style: "castle" }).eq("id", village)).error);
 });
 
+await t("우리가 좋아하는 책: 단을 골라 꽂기, 한 단 14권, 남의 책은 못 고침", async () => {
+  const fb = (u) => u.c.from("favorite_books");
+  const b1 = ok(await fb(m1).insert({ village_id: village, title: "토지", author: "박경리", note: "몇 번을 읽어도", color: "brown", shelf: 2 }).select().single());
+  assert.equal(b1.shelf, 2); assert.equal(b1.added_by, m1.id);
+  assert.equal(ok(await fb(m2).select("*")).length, 1);                                                     // 같은 마을 사람이 본다
+  assert.equal(ok(await fb(outside[0]).select("*")).length, 0);                                             // 마을 밖은 못 본다
+  assert.ok((await fb(outside[0]).insert({ village_id: village, title: "침입", shelf: 1 })).error);
+  assert.ok((await fb(m1).insert({ village_id: village, title: "   ", shelf: 1 })).error);                  // 빈 제목 불가
+  assert.ok((await fb(m1).insert({ village_id: village, title: "5단", shelf: 5 })).error);                  // 단은 1~4
+  assert.ok((await fb(m1).insert({ village_id: village, title: "이상한 색", shelf: 1, color: "rainbow" })).error);
+  assert.ok((await fb(m1).insert({ village_id: village, title: "남의 이름", shelf: 1, added_by: m2.id })).error);   // 꽂은 사람은 정할 수 없다
+  // 남의 책: 주민은 못 고치고 못 빼고, 마을 장은 할 수 있다
+  assert.equal((await fb(m2).update({ shelf: 3 }).eq("id", b1.id).select()).data.length, 0);
+  assert.equal((await fb(m2).delete().eq("id", b1.id).select()).data.length, 0);
+  assert.equal(ok(await fb(m1).update({ shelf: 3, note: "다시 읽는 중" }).eq("id", b1.id).select()).length, 1);   // 내 책은 단을 옮길 수 있다
+  assert.equal(ok(await fb(a).update({ shelf: 2 }).eq("id", b1.id).select()).length, 1);
+  // 한 단 14권
+  for (let i = 0; i < 13; i++) ok(await fb(m1).insert({ village_id: village, title: `책 ${i}`, shelf: 2 }));
+  assert.match((await fb(m1).insert({ village_id: village, title: "열다섯 번째", shelf: 2 })).error.message, /shelf_full/);
+  const loose = ok(await fb(m1).insert({ village_id: village, title: "옮길 책", shelf: 1 }).select().single());
+  assert.match((await fb(m1).update({ shelf: 2 }).eq("id", loose.id)).error.message, /shelf_full/);          // 가득 찬 단으로는 못 옮긴다
+  // 한 사람 30권
+  for (let i = 0; i < 14; i++) ok(await fb(m1).insert({ village_id: village, title: `셋째 단 ${i}`, shelf: 3 }));
+  ok(await fb(m1).insert({ village_id: village, title: "서른 번째", shelf: 4 }));
+  assert.match((await fb(m1).insert({ village_id: village, title: "서른한 번째", shelf: 4 })).error.message, /too_many_books/);
+  ok(await fb(m1).delete().eq("id", loose.id));
+});
+
 await t("이사 떡 돌리기: 마을마다 한 번, 이웃 모두에게, 잘 먹을게요 답례", async () => {
   const nf = async (u, kind) => ok(await u.c.from("notifications").select("*").eq("kind", kind));
   const members = ok(await a.c.from("village_members").select("user_id"));
