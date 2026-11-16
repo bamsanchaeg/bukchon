@@ -1,9 +1,9 @@
-import { grid, hash, px, rect, shade, outline, type Grid } from "./core";
+import { grid, hash, px, rect, outline, type Grid } from "./core";
 
 export const MON_W = 27;
 export const MON_H = 56;
-/** 도서관 왼쪽 길가에 서 있는 비석의 위치(밑동 가운데) */
-export const MON_POS = { x: 146, y: 108 };
+/** 도서관 왼쪽에 서 있는 비석의 위치(밑동 가운데) */
+export const MON_POS = { x: 150, y: 86 };
 
 /** 글자를 도트 폰트(11px)로 찍어 비석 표면에 새긴다 (브라우저에서만 쓴다) */
 function engrave(g: Grid, text: string, cx: number, y0: number) {
