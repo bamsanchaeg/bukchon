@@ -30,7 +30,14 @@ export const REACTIONS = [
 
 export const gestureOf = (id: string): { id: string; hit: string } | undefined => GESTURES.find((g) => g.id === id) ?? OLD_GESTURES.find((g) => g.id === id);
 export const isGesture = (id: string): id is GestureId => GESTURES.some((g) => g.id === id);
-export const giftOf = (id: string) => GIFTS.find((g) => g.id === id);
+/** 이사 떡 (건네기 메뉴에는 없고, 이사 떡 돌리기로만 가는 선물) */
+export const TTEOK = [
+  { id: "siru", label: "팥시루떡", icon: "🍡" },
+  { id: "rainbow", label: "무지개떡", icon: "🍡" },
+  { id: "songpyeon", label: "송편", icon: "🍡" },
+] as const;
+export type TteokKind = (typeof TTEOK)[number]["id"];
+export const giftOf = (id: string): { id: string; label: string; icon: string } | undefined => GIFTS.find((g) => g.id === id) ?? TTEOK.find((g) => g.id === id);
 export const reactionOf = (id: string) => REACTIONS.find((g) => g.id === id);
 
 /** 마지막 접속에서 지난 날수 (오프라인일 때만 의미가 있다) */

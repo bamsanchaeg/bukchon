@@ -541,6 +541,31 @@ await t("마을 건물(도서관 모양)은 마을 장만 바꿀 수 있다", as
   assert.ok((await a.c.from("villages").update({ library_style: "castle" }).eq("id", village)).error);
 });
 
+await t("이사 떡 돌리기: 마을마다 한 번, 이웃 모두에게, 잘 먹을게요 답례", async () => {
+  const nf = async (u, kind) => ok(await u.c.from("notifications").select("*").eq("kind", kind));
+  const members = ok(await a.c.from("village_members").select("user_id"));
+  const others = members.filter((m) => m.user_id !== m1.id);
+  assert.equal(ok(await m1.c.rpc("give_moving_cakes", { p_village: village, p_kind: "songpyeon", p_note: "새로 이사 왔어요" })), others.length);
+  assert.match((await m1.c.rpc("give_moving_cakes", { p_village: village, p_kind: "siru", p_note: "" })).error.message, /already_given/);   // 마을마다 한 번
+  assert.ok((await m2.c.rpc("give_moving_cakes", { p_village: village, p_kind: "kimbap", p_note: "" })).error);                        // 정해진 떡만
+  assert.ok((await outside[0].c.rpc("give_moving_cakes", { p_village: village, p_kind: "siru", p_note: "" })).error);                  // 마을 밖은 못 돌린다
+  for (const u of [a, m2]) {
+    const g = ok(await u.c.from("gifts").select("kind,note,from_user").eq("from_user", m1.id).eq("kind", "songpyeon"));
+    assert.equal(g.length, 1); assert.equal(g[0].kind, "songpyeon"); assert.equal(g[0].note, "새로 이사 왔어요");
+    const n = await nf(u, "moving_cake");
+    assert.equal(n.length, 1); assert.equal(n[0].actor_id, m1.id); assert.equal(n[0].summary, "songpyeon:새로 이사 왔어요");
+  }
+  assert.equal((await nf(m1, "moving_cake")).length, 0);                                                                       // 나에게는 안 간다
+  assert.equal(ok(await m2.c.from("moving_cakes").select("*")).length, 0);                                                          // 남이 돌렸는지는 기록 표에서 안 보인다
+  assert.equal(ok(await m1.c.from("moving_cakes").select("*")).length, 1);
+  // 답례: 떡을 돌린 사람에게만, 같은 사람에게 한 번
+  ok(await m2.c.rpc("thank_moving_cake", { p_village: village, p_target: m1.id }));
+  assert.equal((await nf(m1, "moving_thanks")).length, 1);
+  assert.match((await m2.c.rpc("thank_moving_cake", { p_village: village, p_target: m1.id })).error.message, /already_thanked/);
+  assert.match((await m1.c.rpc("thank_moving_cake", { p_village: village, p_target: m2.id })).error.message, /no_cake/);
+  assert.ok((await outside[0].c.rpc("thank_moving_cake", { p_village: village, p_target: m1.id })).error);
+});
+
 await t("소원구슬: 주민만 쓰고, 상태는 못 바꾸고, 하루 3개까지", async () => {
   const w1 = ok(await m1.c.from("wishes").insert({ village_id: village, body: "광장에 모닥불이 있으면 좋겠어요" }).select().single());
   assert.equal(w1.status, "new"); assert.equal(w1.author_id, m1.id);

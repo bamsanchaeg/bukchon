@@ -372,6 +372,13 @@ export function roomGrid(opts: { slot: number; avatar: Avatar; inside: boolean; 
       // 맥주잔: 황금빛 맥주에 하얀 거품, 손잡이
       rect(g, x, 41, 4, 5, "#e0a53a"); rect(g, x, 41, 1, 5, "#f3c25a"); rect(g, x, 40, 4, 2, "#ffffff"); px(g, x + 1, 39, "#ffffff"); px(g, x + 3, 39, "#f0f0f6");
       px(g, x + 4, 42, "#e9e2c8"); px(g, x + 5, 43, "#e9e2c8"); px(g, x + 4, 44, "#e9e2c8"); px(g, x + 2, 43, "#fff0b8");
+    } else if (k === "siru" || k === "rainbow") {
+      // 떡 접시: 겹겹이 쌓인 떡 조각 (팥시루떡은 팥고물, 무지개떡은 색 줄무늬)
+      const stripes = k === "siru" ? ["#9b3f45", "#f6ead0", "#9b3f45", "#f6ead0"] : ["#ff9fb6", "#ffe58a", "#a5e3a0", "#fffaf0"];
+      rect(g, x, 45, 7, 1, "#ffffff"); stripes.forEach((c, j) => rect(g, x + 1, 41 + j, 5, 1, c)); rect(g, x + 1, 45 - 1, 5, 1, k === "siru" ? "#7a2f36" : "#d9a05a");
+    } else if (k === "songpyeon") {
+      rect(g, x, 45, 7, 1, "#ffffff"); rect(g, x, 44, 7, 1, "#4f9a54");
+      disc(g, x + 2, 43, 1.6, 1.2, "#ffffff"); disc(g, x + 5, 43, 1.6, 1.2, "#bfe8b0"); px(g, x + 3, 41, "#ffc9d6");
     } else if (k === "americano") {
       rect(g, x, 41, 4, 5, "#e9f2f7"); rect(g, x, 42, 4, 3, "#4a2c1c"); px(g, x + 1, 43, "#f4fbff"); rect(g, x + 2, 38, 1, 4, "#2f2a3a");
     } else {

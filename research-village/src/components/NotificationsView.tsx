@@ -13,6 +13,8 @@ export function notifText(n: AppNotification, residents: Resident[], myId: strin
   const actor = nameOf(n.actor_id) ?? "누군가";
   if (n.kind === "chat_request") return `${actor}님이 대화를 신청했어요`;
   if (n.kind === "meeting") return `${actor}님이 Zoom 회의를 열었어요`;
+  if (n.kind === "moving_cake") { const i = n.summary.indexOf(":"); const k = i < 0 ? n.summary : n.summary.slice(0, i); const note = i < 0 ? "" : n.summary.slice(i + 1); return `${actor}님이 이사 떡(${giftOf(k)?.label ?? "떡"})을 돌렸어요${note ? ` — “${note}”` : ""}`; }
+  if (n.kind === "moving_thanks") return `${actor}님이 이사 떡을 잘 먹겠대요 🍡`;
   if (n.kind === "gesture") return `${actor}님이 ${gestureOf(n.summary)?.hit ?? "던지기를 했어요!"}`;
   if (n.kind === "gift") { const i = n.summary.indexOf(":"); const k = i < 0 ? n.summary : n.summary.slice(0, i); const note = i < 0 ? "" : n.summary.slice(i + 1); return `${actor}님이 ${giftOf(k)?.label ?? "선물"}을(를) 건넸어요${note ? ` — “${note}”` : ""}`; }
   if (n.kind === "book_tip") return `${actor}님이 책 《${n.summary}》을(를) 추천해 책장에 꽂아 두었어요`;
@@ -25,8 +27,8 @@ export function notifText(n: AppNotification, residents: Resident[], myId: strin
 }
 
 export default function NotificationsView({
-  list, residents, myId, names, villages, villageId, onOpen, onReadAll, onReply,
-}: { list: AppNotification[]; residents: Resident[]; myId: string; names: Record<string, string>; villages: VillageInfo[]; villageId: string; onOpen: (n: AppNotification) => void; onReadAll: () => void; onReply: (n: AppNotification) => Promise<string | null> }) {
+  list, residents, myId, names, villages, villageId, onOpen, onReadAll, onReply, onThank,
+}: { list: AppNotification[]; residents: Resident[]; myId: string; names: Record<string, string>; villages: VillageInfo[]; villageId: string; onOpen: (n: AppNotification) => void; onReadAll: () => void; onReply: (n: AppNotification) => Promise<string | null>; onThank: (n: AppNotification) => Promise<string | null> }) {
   const [replied, setReplied] = useState<Record<string, string>>({});
   const unread = list.filter((n) => !n.read_at).length;
   return (
@@ -43,6 +45,11 @@ export default function NotificationsView({
                 <span className="text-xs text-ink-soft">{relativeTime(n.created_at)}{n.village_id !== villageId && villages.length > 1 ? ` · ${villages.find((x) => x.id === n.village_id)?.name ?? "다른 마을"}` : ""}</span>
               </span>
             </button>
+            {n.kind === "moving_cake" && (
+              <div className="px-3 pb-1">
+                <button type="button" className="btn btn-sm" disabled={Boolean(replied[n.id])} onClick={async () => { const e = await onThank(n); setReplied((r) => ({ ...r, [n.id]: e ?? "잘 먹겠다고 전했어요 🍡" })); }}>{replied[n.id] ?? "잘 먹을게요"}</button>
+              </div>
+            )}
             {n.kind === "gesture" && (
               <div className="px-3 pb-1">
                 <button type="button" className="btn btn-sm" disabled={Boolean(replied[n.id])} onClick={async () => { const e = await onReply(n); setReplied((r) => ({ ...r, [n.id]: e ?? "되받아쳤어요!" })); }}>{replied[n.id] ?? "되받아치기"}</button>

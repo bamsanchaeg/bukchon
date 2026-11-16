@@ -4,6 +4,7 @@ import { syncPush } from "@/lib/push";
 import { activeTruckId, truckFromId } from "@/lib/trucks";
 import TruckDialog from "./TruckDialog";
 import WishDialog from "./WishDialog";
+import MovingCakes from "./MovingCakes";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { useAuth } from "@/hooks/useAuth";
 import type { useVillage } from "@/hooks/useVillage";
@@ -231,6 +232,7 @@ const me = v.me!;
       {notice && <Notice kind="error">{notice}</Notice>}
 
       {view === "home" && <UpdateNotice userId={me.user_id} />}
+      {view === "home" && <MovingCakes villageId={village.id} myId={me.user_id} neighbors={v.residents.length - 1} />}
       {view === "home" && <WelcomeBack prevSeen={v.prevSeen} userId={me.user_id} nudges={notifs.list.filter((n) => n.kind === "nudge" && !n.read_at).length} onGoLab={() => enterRoom(false)} />}
       {view === "home" && (
         <main className="grid gap-5 lg:grid-cols-[264px_minmax(0,1fr)_276px]">
@@ -363,7 +365,11 @@ const me = v.me!;
       })()}
       {view === "library" && <main><LibraryView lib={lib} villageId={village.id} me={me} residents={v.residents} isAdmin={me.role === "admin"} /></main>}
       {view === "chat" && <main><ChatView chat={chat} residents={v.residents} myId={me.user_id} selectedId={chatId} onSelect={setChatId} /></main>}
-      {view === "alerts" && <main><NotificationsView list={notifs.list} residents={v.residents} myId={me.user_id} names={notifs.names} villages={v.villages} villageId={village.id} onOpen={openNotification} onReply={(n) => give(n.actor_id).onGesture(isGesture(n.summary) ? n.summary : "thesis")} onReadAll={() => void notifs.markRead(notifs.list.filter((n) => !n.read_at).map((n) => n.id))} /></main>}
+      {view === "alerts" && <main><NotificationsView list={notifs.list} residents={v.residents} myId={me.user_id} names={notifs.names} villages={v.villages} villageId={village.id} onOpen={openNotification} onReply={(n) => give(n.actor_id).onGesture(isGesture(n.summary) ? n.summary : "thesis")}
+                onThank={async (n) => {
+                  const { error } = await supabase().rpc("thank_moving_cake", { p_village: n.village_id, p_target: n.actor_id });
+                  return error && !errorMessage(error).includes("already_thanked") ? errorMessage(error) : null;
+                }} onReadAll={() => void notifs.markRead(notifs.list.filter((n) => !n.read_at).map((n) => n.id))} /></main>}
       {view === "settings" && <main><SettingsView profile={profile} me={me} village={village} residents={v.residents} reloadProfile={auth.reloadProfile} reloadVillage={v.reload} /></main>}
 
       {selectedResident && (

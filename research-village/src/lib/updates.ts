@@ -9,6 +9,7 @@ export interface UpdateEntry {
 }
 
 export const UPDATES: UpdateEntry[] = [
+  { id: "2026-11-16-tteok", date: "11월 16일", title: "이사 떡 돌리기가 생겼어요", body: "" },
   { id: "2026-11-16-orb", date: "11월 16일", title: "광장에 소원구슬이 생겼어요", body: "" },
   { id: "2026-11-16-booktitle", date: "11월 16일", title: "함께 쓰는 책의 제목을 고칠 수 있어요", body: "" },
   { id: "2026-11-15-bicheondang", date: "11월 15일", title: "도서관을 성균관대 비천당으로 바꿀 수 있어요", body: "마을 장님만 바꿀 수 있어요." },
