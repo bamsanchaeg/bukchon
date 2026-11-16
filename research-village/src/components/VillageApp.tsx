@@ -21,6 +21,7 @@ import VillageScene from "./VillageScene";
 import StudyRoom from "./StudyRoomWork";
 import SayBox from "./SayBox";
 import PlazaNews from "./PlazaNews";
+import { useNewsBadge } from "@/hooks/useNewsBadge";
 import ChatView from "./ChatView";
 import LibraryView from "./LibraryView";
 import ShoutBoard from "./ShoutBoard";
@@ -77,6 +78,7 @@ const me = v.me!;
   const [toast, setToast] = useState<Toast | null>(null);
   const [chatId, setChatId] = useState<string | null>(null);
   const [newsOpen, setNewsOpen] = useState(false);
+  const newsBadge = useNewsBadge(village.id, me.user_id);
   const [notice, setNotice] = useState("");
   const [fx, setFx] = useState<{ id: number; kind: string; from: string; to: string } | null>(null);
   const viewRef = useRef<View>("home");
@@ -165,7 +167,7 @@ const me = v.me!;
   };
   /** 지도에서 도서관·광장을 누르면 그곳으로 가고, 게시판을 누르면 소식 창이 열린다 */
   const goPlace = (p: "library" | "plaza" | "board") => {
-    if (p === "board") return setNewsOpen(true);
+    if (p === "board") { newsBadge.markSeen(); return setNewsOpen(true); }
     void v.setStatus(p === "library" ? "library" : "rest");
     if (p === "library") setView("library");
   };
@@ -305,6 +307,7 @@ const me = v.me!;
                     truck={truck?.kind ?? null}
                     libraryStyle={village.library_style}
                     onOrb={() => setWishOpen(true)}
+                    boardNew={newsBadge.count}
                     onTruck={() => setTruckOpen(true)}
                     onHouse={(slot) => {
                       const owner = v.residents.find((r) => r.slot === slot);
@@ -375,7 +378,7 @@ const me = v.me!;
       {selectedResident && (
         <ProfileModal resident={selectedResident} isMe={selectedResident.user_id === me.user_id} onClose={() => setSelected(null)} onEditProfile={() => { setSelected(null); setView("settings"); }} onVisit={() => visit(selectedResident.user_id)} onChat={() => void startChat(selectedResident.user_id)} give={give(selectedResident.user_id)} />
       )}
-      {newsOpen && <PlazaNews villageId={village.id} myId={me.user_id} isAdmin={me.role === "admin"} residents={v.residents} onClose={() => setNewsOpen(false)} />}
+      {newsOpen && <PlazaNews villageId={village.id} myId={me.user_id} isAdmin={me.role === "admin"} residents={v.residents} onClose={() => { newsBadge.markSeen(); setNewsOpen(false); }} />}
       {wishOpen && <WishDialog villageId={village.id} myId={me.user_id} residents={v.residents} onClose={() => setWishOpen(false)} />}
       {truck && truckOpen && <TruckDialog key={truck.id} truck={truck} onClose={() => setTruckOpen(false)} />}
       {toast && !(toast.kind === "notif" && view === "alerts") && !(toast.kind === "chat" && view === "chat" && chatId === toast.conv.id) && (

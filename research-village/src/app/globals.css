@@ -352,3 +352,23 @@ button:disabled, .scene-hit:disabled { cursor: default; }
   .scene-label { font-size: 10px; line-height: 13px; padding: 0 4px 1px; margin-top: 3px; }
   .scene-label-name { font-size: 9px; line-height: 11px; margin-top: 1px; }
 }
+
+/* 마을 게시판 옆의 새 글 표시 */
+.scene-new {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+  padding: 0 4px;
+  background: #e0302a;
+  color: #fff;
+  border: 1px solid var(--color-ink);
+  font-family: "Galmuri9", var(--font-small);
+  font-size: 10px;
+  line-height: 13px;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  box-shadow: 1px 1px 0 0 rgb(58 42 51 / 0.35);
+  animation: scene-new-bob 1.4s steps(2) infinite;
+}
+@keyframes scene-new-bob { 50% { transform: translateY(-2px); } }
+@media (prefers-reduced-motion: reduce) { .scene-new { animation: none; } }
