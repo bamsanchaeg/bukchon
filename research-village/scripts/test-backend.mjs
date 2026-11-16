@@ -591,6 +591,13 @@ await t("끌어서 순서 바꾸기: 도서관 책(주민 누구나), 연구 성
   assert.equal((await m2.c.from("favorite_books").update({ sort_order: 1 }).eq("id", f1.id).select()).data.length, 0);
 });
 
+await t("건네기 간식 종류", async () => {
+  for (const kind of ["mochi", "yakgwa", "tangerine", "apple", "minishell", "haribo"]) ok(await m1.c.rpc("send_gift", { p_village: village, p_target: m2.id, p_kind: kind, p_note: "맛있게 드세요" }));
+  assert.ok((await m1.c.rpc("send_gift", { p_village: village, p_target: m2.id, p_kind: "pizza", p_note: "" })).error);               // 정해진 종류만
+  const desk = ok(await m3.c.rpc("desk_gifts", { p_owner: m2.id })).map((g) => g.kind);
+  assert.ok(desk.includes("haribo") && desk.includes("yakgwa"));                                                                       // 책상 위에는 종류만 보인다
+});
+
 await t("이사 떡 돌리기: 마을마다 한 번, 이웃 모두에게, 잘 먹을게요 답례", async () => {
   const nf = async (u, kind) => ok(await u.c.from("notifications").select("*").eq("kind", kind));
   const members = ok(await a.c.from("village_members").select("user_id"));

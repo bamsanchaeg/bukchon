@@ -388,6 +388,19 @@ export function roomGrid(opts: { slot: number; avatar: Avatar; inside: boolean; 
       // 맥주잔: 황금빛 맥주에 하얀 거품, 손잡이
       rect(g, x, 41, 4, 5, "#e0a53a"); rect(g, x, 41, 1, 5, "#f3c25a"); rect(g, x, 40, 4, 2, "#ffffff"); px(g, x + 1, 39, "#ffffff"); px(g, x + 3, 39, "#f0f0f6");
       px(g, x + 4, 42, "#e9e2c8"); px(g, x + 5, 43, "#e9e2c8"); px(g, x + 4, 44, "#e9e2c8"); px(g, x + 2, 43, "#fff0b8");
+    } else if (k === "mochi") {
+      rect(g, x, 45, 7, 1, "#ffffff"); disc(g, x + 3, 43, 2.8, 2.2, "#e9e4f0"); disc(g, x + 3, 42.6, 2.6, 2, "#fffdf8"); px(g, x + 4, 42, "#cfe0ff");
+    } else if (k === "yakgwa") {
+      rect(g, x, 45, 7, 1, "#ffffff"); rect(g, x + 1, 42, 5, 3, "#c0813f"); rect(g, x + 2, 41, 3, 1, "#c0813f"); rect(g, x + 2, 43, 3, 1, "#d49a52"); px(g, x + 3, 43, "#8a5a2a"); px(g, x + 2, 42, "#f3c987");
+    } else if (k === "tangerine") {
+      rect(g, x, 45, 7, 1, "#ffffff"); disc(g, x + 3, 43, 2.8, 2.4, "#ff9a2e"); px(g, x + 2, 42, "#ffc46b"); px(g, x + 3, 40, "#5fae4a"); px(g, x + 4, 40, "#5fae4a");
+    } else if (k === "apple") {
+      rect(g, x, 45, 7, 1, "#ffffff"); disc(g, x + 3, 43, 2.8, 2.4, "#e0383f"); px(g, x + 2, 42, "#ff8a8a"); px(g, x + 3, 40, "#6b4a30"); px(g, x + 4, 40, "#5fae4a"); px(g, x + 3, 41, "#8e1a22");
+    } else if (k === "minishell") {
+      rect(g, x, 45, 7, 1, "#ffffff"); disc(g, x + 2, 43.5, 2, 1.6, "#e8b567"); disc(g, x + 5, 43.5, 2, 1.6, "#d9a050"); px(g, x + 2, 42, "#f6d79b"); px(g, x + 1, 44, "#c98a40"); px(g, x + 5, 44, "#c98a40");
+    } else if (k === "haribo") {
+      rect(g, x, 45, 7, 1, "#ffffff");
+      [["#ff4d5e", 0], ["#5fd36a", 2], ["#ffa63a", 4]].forEach(([c, dx]) => { rect(g, x + (dx as number), 42, 2, 3, c as string); px(g, x + (dx as number), 41, c as string); px(g, x + (dx as number) + 1, 41, c as string); });
     } else if (k === "siru" || k === "rainbow") {
       // 떡 접시: 겹겹이 쌓인 떡 조각 (팥시루떡은 팥고물, 무지개떡은 색 줄무늬)
       const stripes = k === "siru" ? ["#9b3f45", "#f6ead0", "#9b3f45", "#f6ead0"] : ["#ff9fb6", "#ffe58a", "#a5e3a0", "#fffaf0"];

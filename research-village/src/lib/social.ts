@@ -14,7 +14,12 @@ const OLD_GESTURES = [
 export const GIFTS = [
   { id: "coffee", label: "커피 한 잔", icon: "☕" },
   { id: "americano", label: "아이스 아메리카노", icon: "🧊" },
-  { id: "snack", label: "간식", icon: "🍪" },
+  { id: "mochi", label: "요거트 찹쌀떡", icon: "🍡" },
+  { id: "yakgwa", label: "약과", icon: "🍪" },
+  { id: "tangerine", label: "귤", icon: "🍊" },
+  { id: "apple", label: "사과", icon: "🍎" },
+  { id: "minishell", label: "미니쉘", icon: "🐚" },
+  { id: "haribo", label: "하리보", icon: "🧸" },
   { id: "tea", label: "따뜻한 차", icon: "🍵" },
   { id: "beer", label: "맥주 한 잔", icon: "🍺" },
 ] as const;
@@ -37,7 +42,11 @@ export const TTEOK = [
   { id: "songpyeon", label: "송편", icon: "🍡" },
 ] as const;
 export type TteokKind = (typeof TTEOK)[number]["id"];
-export const giftOf = (id: string): { id: string; label: string; icon: string } | undefined => GIFTS.find((g) => g.id === id) ?? TTEOK.find((g) => g.id === id);
+/** 예전에 건넨 "간식" 선물이 계속 읽히도록 남겨 둔 종류 */
+const OLD_GIFTS = [{ id: "snack", label: "간식", icon: "🍪" }] as const;
+/** 간식으로 묶이는 선물 (고르는 화면에서 따로 보여 준다) */
+export const SNACK_IDS = ["mochi", "yakgwa", "tangerine", "apple", "minishell", "haribo"] as const;
+export const giftOf = (id: string): { id: string; label: string; icon: string } | undefined => GIFTS.find((g) => g.id === id) ?? TTEOK.find((g) => g.id === id) ?? OLD_GIFTS.find((g) => g.id === id);
 export const reactionOf = (id: string) => REACTIONS.find((g) => g.id === id);
 
 /** 마지막 접속에서 지난 날수 (오프라인일 때만 의미가 있다) */
