@@ -1,6 +1,8 @@
 "use client";
-import { useState } from "react";
-import { GESTURES, GIFTS, type GestureId, type GiftId } from "@/lib/social";
+import { useMemo, useState } from "react";
+import { GESTURES, GIFTS, SNACK_IDS, type GestureId, type GiftId } from "@/lib/social";
+import { snackGrid, type SnackId } from "@/pixel/snacks";
+import PixelArt from "./PixelArt";
 
 type Result = string | null; // 오류 문구, 성공이면 null
 
@@ -35,12 +37,26 @@ export function ThrowBox({ name, onGesture }: { name: string; onGesture: (kind: 
 export function GiftBox({ name, onGift, onDone }: { name: string; onGift: (kind: GiftId, note: string) => Promise<Result> | Result; onDone?: () => void }) {
   const [note, setNote] = useState("");
   const { done, view } = useFeedback();
+  const drinks = GIFTS.filter((g) => !(SNACK_IDS as readonly string[]).includes(g.id));
+  const snacks = GIFTS.filter((g) => (SNACK_IDS as readonly string[]).includes(g.id));
+  const arts = useMemo(() => Object.fromEntries(SNACK_IDS.map((id) => [id, snackGrid(id)])) as Record<SnackId, ReturnType<typeof snackGrid>>, []);
+  const send = (g: (typeof GIFTS)[number]) => done(onGift(g.id, note.trim()), `${name}님 책상에 ${g.label}을(를) 올려 두었어요.`, () => { setNote(""); onDone?.(); });
   return (
     <section aria-label={`${name}님 책상에 건네기`} className="space-y-2">
       <p className="text-sm text-ink-soft">책상 위에 하루 동안 올라가요. 보낸 사람과 한마디는 {name}님에게만 보여요.</p>
+      <p className="label">마실 것</p>
       <div className="flex flex-wrap items-center gap-1.5">
-        {GIFTS.map((g) => (
-          <button key={g.id} type="button" className="btn btn-sm btn-mint" onClick={() => void done(onGift(g.id, note.trim()), `${name}님 책상에 ${g.label}을(를) 올려 두었어요.`, () => { setNote(""); onDone?.(); })}>{g.label}</button>
+        {drinks.map((g) => (
+          <button key={g.id} type="button" className="btn btn-sm btn-mint" onClick={() => void send(g)}>{g.label}</button>
+        ))}
+      </div>
+      <p className="label">간식</p>
+      <div className="flex flex-wrap items-stretch gap-1.5" role="group" aria-label="간식">
+        {snacks.map((g) => (
+          <button key={g.id} type="button" className="card flex w-[88px] flex-col items-center px-1 pb-1 pt-1.5 text-center hover:bg-[#fff3c4]" onClick={() => void send(g)}>
+            <PixelArt art={arts[g.id as SnackId]} scale={3} label={`${g.label} 도트 그림`} />
+            <span className="mt-1 block text-xs leading-tight">{g.label}</span>
+          </button>
         ))}
       </div>
       <label className="sr-only" htmlFor="give-note">건넬 때 한마디</label>

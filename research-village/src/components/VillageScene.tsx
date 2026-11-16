@@ -5,7 +5,7 @@ import { currentPhase, currentSeason, type DayPhase, type Season } from "@/lib/t
 import type { House, Resident } from "@/lib/types";
 import { bake } from "@/pixel/core";
 import { fxGrid } from "@/pixel/fx";
-import { ORB_H, ORB_POS, ORB_W, orbPedestalGrid, orbSphereGrid } from "@/pixel/orb";
+import { ORB_H, ORB_POS, ORB_W, newMarkGrid, orbPedestalGrid, orbSphereGrid } from "@/pixel/orb";
 import { RACCOON_POS, TRUCK_AWNING_Y, TRUCK_H, TRUCK_POS, TRUCK_REST_SPOTS, TRUCK_W, TRUCK_WINDOW, ladleGrid, raccoonGrid, truckGrid } from "@/pixel/truck";
 import { AV_CX, AV_H, avatarGrid } from "@/pixel/avatar";
 import {
@@ -37,18 +37,22 @@ export interface SceneProps {
   libraryStyle?: LibraryStyle;
   /** 소원구슬을 눌렀을 때 */
   onOrb?: () => void;
+  /** 마을 게시판 옆에 뜨는 안 읽은 새 글 수 */
+  boardNew?: number;
   /** 연구실 앞 책상을 눌렀을 때 */
   onDesk: (slot: number) => void;
   /** 이웃에게 던지기 (학위논문·마감 알림·과자). id 가 바뀔 때마다 한 번 재생된다 */
   fx?: { id: number; kind: string; from: string; to: string } | null;
 }
 
-export default function VillageScene({ houses, residents, myId, onCharacter, onHouse, onPlace, onDesk, fx, truck, onTruck, libraryStyle = "classic", onOrb }: SceneProps) {
+export default function VillageScene({ houses, residents, myId, onCharacter, onHouse, onPlace, onDesk, fx, truck, onTruck, libraryStyle = "classic", onOrb, boardNew = 0 }: SceneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const tagRefs = useRef(new Map<string, HTMLButtonElement>());
   const walkers = useRef(new Map<string, Walker>());
   const data = useRef({ houses, residents, myId });
+  const newRef = useRef(boardNew);
+  useEffect(() => { newRef.current = boardNew; }, [boardNew]);
   const fxRef = useRef<{ id: number; kind: string; from: string; to: string; start: number } | null>(null);
   useEffect(() => {
     if (fx && fxRef.current?.id !== fx.id) fxRef.current = { ...fx, start: performance.now() };
@@ -177,6 +181,26 @@ export default function VillageScene({ houses, residents, myId, onCharacter, onH
           }
         },
       });
+      if (newRef.current > 0) {
+        // 게시판 위에서 반짝이는 N (노란 테두리)
+        items.push({
+          y: BOARD.y + 1,
+          draw: () => {
+            const nx = BOARD.x + 12, ny = BOARD.y - 38 + (Math.round(Math.sin(tick * 0.18) * 1.5));
+            b.drawImage(sp("newmark", () => newMarkGrid()), nx - 5, ny - 6);
+            // 노란 별빛이 N 둘레에서 번갈아 반짝인다
+            const star = (x: number, y: number, big: boolean) => {
+              b.fillStyle = "#fff6b0"; b.fillRect(x, y, 1, 1);
+              if (big) { b.fillRect(x - 1, y, 1, 1); b.fillRect(x + 1, y, 1, 1); b.fillRect(x, y - 1, 1, 1); b.fillRect(x, y + 1, 1, 1); }
+            };
+            const ph = Math.floor(tick / 5) % 4;
+            if (ph !== 1) star(nx - 8, ny - 6, ph === 0);
+            if (ph !== 2) star(nx + 8, ny - 4, ph === 3);
+            if (ph !== 3) star(nx + 7, ny + 7, ph === 1);
+            if (ph !== 0) star(nx - 7, ny + 6, ph === 2);
+          },
+        });
+      }
       if (truck) {
         const tx = TRUCK_POS.x - TRUCK_W / 2, ty = TRUCK_POS.y - TRUCK_H + 3;
         items.push({
@@ -382,6 +406,7 @@ export default function VillageScene({ houses, residents, myId, onCharacter, onH
 
       <button type="button" className="scene-hit" style={pct(ORB_POS.x - 10, ORB_POS.y - ORB_H, 20, ORB_H + 1)} aria-label="소원구슬 — 눌러서 소원 빌기" onClick={() => onOrb?.()} />
       {truck && <button type="button" className="scene-hit" style={pct(TRUCK_POS.x - TRUCK_W / 2, TRUCK_POS.y - TRUCK_H + 3, TRUCK_W, TRUCK_H - 4)} aria-label={truck === "night" ? "새벽 야식 트럭 — 눌러서 메뉴 보기" : "아침 밥차 — 눌러서 메뉴 보기"} onClick={() => onTruck?.()} />}
+      {boardNew > 0 && <span className="sr-only" role="status" aria-label={`게시판에 안 읽은 새 글 ${boardNew}개`}>게시판에 새 글이 있어요</span>}
       <button type="button" className="scene-hit" style={pct(BOARD.x - 17, BOARD.y - 33, 34, 34)} aria-label="마을 게시판 — 눌러서 소식 보기" onClick={() => onPlace("board")} />
 
       {houses.map((h) => {

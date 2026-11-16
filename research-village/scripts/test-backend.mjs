@@ -591,6 +591,40 @@ await t("끌어서 순서 바꾸기: 도서관 책(주민 누구나), 연구 성
   assert.equal((await m2.c.from("favorite_books").update({ sort_order: 1 }).eq("id", f1.id).select()).data.length, 0);
 });
 
+await t("건네기 간식 종류", async () => {
+  for (const kind of ["mochi", "yakgwa", "tangerine", "apple", "minishell", "haribo"]) ok(await m1.c.rpc("send_gift", { p_village: village, p_target: m2.id, p_kind: kind, p_note: "맛있게 드세요" }));
+  assert.ok((await m1.c.rpc("send_gift", { p_village: village, p_target: m2.id, p_kind: "pizza", p_note: "" })).error);               // 정해진 종류만
+  const desk = ok(await m3.c.rpc("desk_gifts", { p_owner: m2.id })).map((g) => g.kind);
+  assert.ok(desk.includes("haribo") && desk.includes("yakgwa"));                                                                       // 책상 위에는 종류만 보인다
+});
+
+await t("접속 중이면 내가 속한 모든 마을에서 온라인", async () => {
+  if (!process.env.SUPABASE_SERVICE_KEY) return;
+  const sadmin = createClient(url, process.env.SUPABASE_SERVICE_KEY, { auth: { persistSession: false } });
+  const u = await user(901);
+  const v1 = ok(await u.c.rpc("create_village", { p_name: "첫 마을" })), v2 = ok(await u.c.rpc("create_village", { p_name: "옆 마을" }));
+  const row = async (v) => ok(await sadmin.from("research_status").select("last_seen_at,left_at,status").eq("village_id", v).eq("user_id", u.id).single());
+  const old = new Date(Date.now() - 600_000).toISOString();
+  // 옆 마을 자리가 오래됐어도 첫 마을에서 heartbeat 를 보내면 옆 마을도 접속 중으로 갱신된다
+  await sadmin.from("research_status").update({ last_seen_at: old, left_at: old }).eq("village_id", v2).eq("user_id", u.id);
+  ok(await u.c.rpc("heartbeat", { p_village: v1 }));
+  const r2 = await row(v2);
+  assert.ok(new Date(r2.last_seen_at).getTime() > Date.now() - 20_000); assert.equal(r2.left_at, null);
+  // 탭을 닫으면 모든 마을에서 오프라인
+  ok(await u.c.rpc("go_away", { p_village: v1 }));
+  assert.ok((await row(v2)).left_at); assert.ok((await row(v1)).left_at);
+  // 다시 들어오면 오래 비웠던 마을의 '집중 연구'는 '휴식'으로 되돌아가고 모든 마을이 접속 중
+  await sadmin.from("research_status").update({ status: "focus" }).eq("village_id", v2).eq("user_id", u.id);
+  await sadmin.from("research_status").update({ last_seen_at: old }).eq("village_id", v2).eq("user_id", u.id);
+  ok(await u.c.rpc("enter_village", { p_village: v1 }));
+  const r3 = await row(v2);
+  assert.equal(r3.status, "rest"); assert.equal(r3.left_at, null); assert.ok(new Date(r3.last_seen_at).getTime() > Date.now() - 20_000);
+  // 방금까지 있던 마을의 상태는 그대로 (자리 비운 적 없으니 되돌리지 않는다)
+  await sadmin.from("research_status").update({ status: "library" }).eq("village_id", v2).eq("user_id", u.id);
+  ok(await u.c.rpc("enter_village", { p_village: v1 }));
+  assert.equal((await row(v2)).status, "library");
+});
+
 await t("이사 떡 돌리기: 마을마다 한 번, 이웃 모두에게, 잘 먹을게요 답례", async () => {
   const nf = async (u, kind) => ok(await u.c.from("notifications").select("*").eq("kind", kind));
   const members = ok(await a.c.from("village_members").select("user_id"));
