@@ -2,35 +2,23 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { errorMessage, supabase } from "@/lib/supabase";
 import { relativeTime } from "@/lib/time";
-import type { Resident } from "@/lib/types";
+import type { FavBook } from "@/hooks/useFavBooks";
 import { bake } from "@/pixel/core";
 import { SHELF_H, SHELF_MAX, SHELF_NAMES, SHELF_W, SPINE_COLORS, SPINE_IDS, layoutShelf, shelfGrid, type SpineColor } from "@/pixel/shelf";
 import { Notice, Window } from "./ui";
 
-interface FavBook { id: string; added_by: string | null; title: string; author: string; note: string; color: string; shelf: number; created_at: string }
 const COLOR_NAME: Record<SpineColor, string> = { red: "빨강", orange: "주황", yellow: "노랑", green: "초록", teal: "청록", blue: "파랑", navy: "남색", purple: "보라", pink: "분홍", brown: "갈색", gray: "회색", cream: "크림" };
-const ERRORS: [string, string][] = [["shelf_full", "이 단은 가득 찼어요. 다른 단에 꽂아 보세요."], ["too_many_books", "한 사람이 꽂을 수 있는 책은 30권까지예요."]];
+const ERRORS: [string, string][] = [["shelf_full", "이 단은 가득 찼어요. 다른 단에 꽂아 보세요."], ["too_many_books", "책장에는 모두 합쳐 40권까지 꽂을 수 있어요."]];
 const SCALE = 4;
 
-/** 우리가 좋아하는 책: 마을 사람들이 도서관 책장의 원하는 단에 좋아하는 책을 꽂는다 */
-export default function FavoriteShelf({ villageId, me, residents, isAdmin }: { villageId: string; me: Resident; residents: Resident[]; isAdmin: boolean }) {
-  const [books, setBooks] = useState<FavBook[] | null>(null);
-  const [round, setRound] = useState(0);
+/** 연구실의 좋아하는 책장: 주인은 원하는 단에 책을 꽂고 옮기고 빼고, 방문한 이웃은 구경만 한다 */
+export default function FavoriteShelf({ books, reload, editable, ownerName, bare = false }: { books: FavBook[] | null; reload: () => void; editable: boolean; ownerName: string; bare?: boolean }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [form, setForm] = useState({ title: "", author: "", note: "", color: "red" as SpineColor, shelf: 1 });
   const [msg, setMsg] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const who = (id: string | null) => (id ? residents.find((r) => r.user_id === id)?.profile.display_name ?? "떠난 주민" : "떠난 주민");
-  const reload = () => setRound((n) => n + 1);
   const fail = (e: unknown) => { const t = errorMessage(e); setMsg({ kind: "error", text: ERRORS.find(([k]) => t.includes(k))?.[1] ?? t }); };
-
-  useEffect(() => {
-    let alive = true;
-    supabase().from("favorite_books").select("id, added_by, title, author, note, color, shelf, created_at").eq("village_id", villageId).order("created_at")
-      .then(({ data }) => { if (alive) setBooks((data as FavBook[]) ?? []); });
-    return () => { alive = false; };
-  }, [villageId, round]);
 
   const list = useMemo(() => books ?? [], [books]);
   const spines = useMemo(() => layoutShelf(list), [list]);
@@ -46,7 +34,7 @@ export default function FavoriteShelf({ villageId, me, residents, isAdmin }: { v
   const add = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true); setMsg(null);
-    const { error } = await supabase().from("favorite_books").insert({ village_id: villageId, title: form.title.trim(), author: form.author.trim(), note: form.note.trim(), color: form.color, shelf: form.shelf });
+    const { error } = await supabase().from("favorite_books").insert({ title: form.title.trim(), author: form.author.trim(), note: form.note.trim(), color: form.color, shelf: form.shelf });
     setBusy(false);
     if (error) { fail(error); return; }
     setForm({ ...form, title: "", author: "", note: "" });
@@ -54,7 +42,6 @@ export default function FavoriteShelf({ villageId, me, residents, isAdmin }: { v
     reload();
   };
   const sel = list.find((b) => b.id === selected) ?? null;
-  const canEdit = (b: FavBook) => b.added_by === me.user_id || isAdmin;
   const move = async (b: FavBook, shelf: number) => {
     setMsg(null);
     const { error } = await supabase().from("favorite_books").update({ shelf }).eq("id", b.id);
@@ -68,12 +55,11 @@ export default function FavoriteShelf({ villageId, me, residents, isAdmin }: { v
   };
   const count = (t: number) => list.filter((b) => b.shelf === t).length;
 
-  return (
-    <Window title="우리가 좋아하는 책" tone="rose">
-      <div className="space-y-3 p-3">
-        <p className="text-sm text-ink-soft">마을 사람들이 좋아하는 책을 단을 골라 꽂아 두는 책장이에요. 책등을 누르면 누가 꽂았는지와 한마디를 볼 수 있어요.</p>
+  const inner = (
+      <div className={`space-y-3 ${bare ? "" : "p-3"}`}>
+        <p className="text-sm text-ink-soft">{editable ? "연구실 책장에 좋아하는 책을 단을 골라 꽂아 두세요. 이웃이 연구실에 놀러 오면 구경할 수 있어요." : "책등을 누르면 한마디를 볼 수 있어요."} 책등을 누르면 책이 뽑혀 나와요.</p>
         <div className="relative mx-auto w-full" style={{ maxWidth: SHELF_W * SCALE }}>
-          <canvas ref={canvasRef} width={SHELF_W * SCALE} height={SHELF_H * SCALE} className="pixelated block w-full" style={{ height: "auto", aspectRatio: `${SHELF_W} / ${SHELF_H}` }} role="img" aria-label="우리가 좋아하는 책이 꽂힌 책장" />
+          <canvas ref={canvasRef} width={SHELF_W * SCALE} height={SHELF_H * SCALE} className="pixelated block w-full" style={{ height: "auto", aspectRatio: `${SHELF_W} / ${SHELF_H}` }} role="img" aria-label="좋아하는 책이 꽂힌 책장" />
           {spines.map((r) => {
             const b = list.find((x) => x.id === r.id)!;
             return (
@@ -84,7 +70,7 @@ export default function FavoriteShelf({ villageId, me, residents, isAdmin }: { v
           })}
         </div>
         {books === null && <p className="text-sm text-ink-soft">책장을 정리하는 중…</p>}
-        {books?.length === 0 && <p className="text-center text-sm text-ink-soft">아직 꽂힌 책이 없어요. 첫 책을 꽂아 보세요.</p>}
+        {books?.length === 0 && <p className="text-center text-sm text-ink-soft">{editable ? "아직 꽂힌 책이 없어요. 첫 책을 꽂아 보세요." : "아직 꽂힌 책이 없어요."}</p>}
         {sel && (
           <section className="card space-y-2 p-3" aria-label="고른 책">
             <div className="flex flex-wrap items-center gap-2">
@@ -92,9 +78,9 @@ export default function FavoriteShelf({ villageId, me, residents, isAdmin }: { v
               <h3 className="font-display text-lg">{sel.title}</h3>
               {sel.author && <span className="text-sm text-ink-soft">{sel.author}</span>}
             </div>
-            <p className="text-xs text-ink-soft">{who(sel.added_by)}님이 {SHELF_NAMES[sel.shelf - 1]}에 꽂았어요 · {relativeTime(sel.created_at)}</p>
+            <p className="text-xs text-ink-soft">{ownerName}님이 {SHELF_NAMES[sel.shelf - 1]}에 꽂았어요 · {relativeTime(sel.created_at)}</p>
             {sel.note && <p className="text-sm">“{sel.note}”</p>}
-            {canEdit(sel) && (
+            {editable && (
               <div className="flex flex-wrap items-center gap-2">
                 <label className="text-xs text-ink-soft" htmlFor="fav-move">단 옮기기</label>
                 <select id="fav-move" className="input !w-auto" value={sel.shelf} onChange={(e) => void move(sel, Number(e.target.value))}>
@@ -106,7 +92,7 @@ export default function FavoriteShelf({ villageId, me, residents, isAdmin }: { v
           </section>
         )}
         {msg && <Notice kind={msg.kind}>{msg.text}</Notice>}
-        <form onSubmit={add} className="card space-y-2 p-3" aria-label="책 꽂기">
+        {editable && <form onSubmit={add} className="card space-y-2 p-3" aria-label="책 꽂기">
           <p className="label">좋아하는 책 꽂기</p>
           <input className="input" aria-label="책 제목" placeholder="책 제목" maxLength={60} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
           <input className="input" aria-label="지은이" placeholder="지은이 (선택)" maxLength={40} value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} />
@@ -127,8 +113,8 @@ export default function FavoriteShelf({ villageId, me, residents, isAdmin }: { v
             </select>
             <button type="submit" className="btn btn-primary" disabled={busy || !form.title.trim()}>책 꽂기</button>
           </div>
-        </form>
+        </form>}
       </div>
-    </Window>
   );
+  return bare ? inner : <Window title={`${ownerName}님이 좋아하는 책`} tone="rose">{inner}</Window>;
 }

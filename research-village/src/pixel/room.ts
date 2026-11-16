@@ -2,6 +2,7 @@ import type { DayPhase } from "@/lib/time";
 import type { Avatar, LabStyle } from "@/lib/types";
 import { ACHIEVEMENT_KINDS } from "@/lib/constants";
 import { DEFAULT_LAB_STYLE } from "@/lib/labStyle";
+import { SPINE_COLORS, type SpineColor } from "./shelf";
 import { avatarGrid } from "./avatar";
 import { petSprite, wichuSprite } from "./pets";
 import { disc, grid, hash, outline, px, rect, rng, shade, stamp, type Grid } from "./core";
@@ -11,7 +12,7 @@ export const ROOM_H = 84;
 const WOOD = "#b98552", WOOD_D = "#8e5f3b", WOOD_L = "#dcaa72";
 
 /** 연구실 내부. 꾸미기 설정(style)이 벽지·바닥·커튼·러그·창밖 풍경·반려동물·소품에 쓰인다. */
-export function roomGrid(opts: { slot: number; avatar: Avatar; inside: boolean; studying: boolean; phase: DayPhase; frame: number; boardCount: number; postitColors: string[]; shelf: string[]; gifts?: string[]; tips?: number; style?: LabStyle }): Grid {
+export function roomGrid(opts: { slot: number; avatar: Avatar; inside: boolean; studying: boolean; phase: DayPhase; frame: number; boardCount: number; postitColors: string[]; shelf: string[]; gifts?: string[]; tips?: number; favs?: { shelf: number; color: string }[]; style?: LabStyle }): Grid {
   const st = opts.style ?? DEFAULT_LAB_STYLE;
   const wall = st.wall;
   const accent = st.accent; // 커튼·러그 색
@@ -153,6 +154,21 @@ export function roomGrid(opts: { slot: number; avatar: Avatar; inside: boolean; 
     for (let x = 40; x < 105; x += 4) { px(g, x, 72, shade(accent, -30)); }
   }
 
+  // 좋아하는 책장: 왼쪽 바닥에 선 작은 4단 책장. 단마다 꽂은 책(최대 5권)이 보인다
+  {
+    const wood = "#8a5a3a", woodD = "#5a3a26", woodL = "#b8743a";
+    rect(g, 2, 47, 20, 32, woodD); rect(g, 3, 48, 18, 30, "#6b4a30"); rect(g, 2, 47, 20, 1, woodL); rect(g, 2, 47, 1, 32, wood); rect(g, 21, 47, 1, 32, wood);
+    for (let t = 1; t <= 4; t++) {
+      const yb = 48 + t * 7 - 1;
+      rect(g, 3, yb, 18, 1, woodL); rect(g, 3, yb + 1, 18, 1, wood);
+      const row = (opts.favs ?? []).filter((f) => f.shelf === t).slice(0, 5);
+      row.forEach((f, i) => {
+        const col = SPINE_COLORS[f.color as SpineColor] ?? SPINE_COLORS.red, h = 4 + ((i * 3 + t) % 3);
+        rect(g, 4 + i * 3, yb - h, 2, h, col); px(g, 4 + i * 3, yb - h, shade(col, 40)); px(g, 5 + i * 3, yb - 2, shade(col, -40));
+      });
+    }
+    rect(g, 2, 79, 20, 1, "#00000022");
+  }
   // 소품 (꾸미기에서 고른 것)
   if (st.extras.includes("plant")) {
     // 꽃 화분: 작은 잎 위에 분홍·노랑·하늘색 꽃

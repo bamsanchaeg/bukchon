@@ -4,7 +4,6 @@ import { errorMessage, supabase } from "@/lib/supabase";
 import { clockLabel, relativeTime } from "@/lib/time";
 import type { useLibrary } from "@/hooks/useLibrary";
 import type { Book, Resident } from "@/lib/types";
-import FavoriteShelf from "./FavoriteShelf";
 import { Notice, Window } from "./ui";
 
 type Lib = ReturnType<typeof useLibrary>;
@@ -54,7 +53,6 @@ export default function LibraryView({
       {error && <Notice kind="error">{error}</Notice>}
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
         <div className="space-y-5">
-          <FavoriteShelf villageId={villageId} me={me} residents={residents} isAdmin={isAdmin} />
           <Window title="함께 쓰는 책장" tone="butter">
             <div className="space-y-3 p-3">
               <div className="px-box flex min-h-[180px] flex-wrap items-end gap-1 p-2" style={{ background: "linear-gradient(#6f4a30 0 0) bottom / 100% 10px no-repeat, #8a5f3c", ["--bd" as string]: "#3a2a33" }} role="group" aria-label="책장">
