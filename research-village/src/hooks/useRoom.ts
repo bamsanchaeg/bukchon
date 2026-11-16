@@ -20,7 +20,7 @@ export function useRoom(ownerId: string, isOwner: boolean, enabled = true) {
     const [i, p, a, gf, bt] = await Promise.all([
       sb.from("whiteboard_items").select("*").eq("owner_id", ownerId).order("created_at", { ascending: false }),
       sb.from("postits").select("*").eq("owner_id", ownerId).order("created_at", { ascending: false }).limit(60),
-      sb.from("achievements").select("*").eq("owner_id", ownerId).order("created_at", { ascending: false }),
+      sb.from("achievements").select("*").eq("owner_id", ownerId).order("sort_order").order("created_at", { ascending: false }),
       isOwner
         ? sb.from("gifts").select("*").eq("to_user", ownerId).gt("created_at", since).order("created_at", { ascending: false }).limit(12)
         : sb.rpc("desk_gifts", { p_owner: ownerId }),
@@ -66,5 +66,12 @@ export function useRoom(ownerId: string, isOwner: boolean, enabled = true) {
     };
   }, [load, ownerId, enabled]);
 
-  return { items, comments, postits, achievements, gifts, tips, loaded, reload: load };
+  /** 내 연구 성과 책장의 순서를 바꾼다 (끌어서 놓은 순서대로 id 목록을 준다) */
+  const reorderAchievements = useCallback(async (ids: string[]) => {
+    setAchievements((prev) => [...ids.flatMap((id) => prev.filter((a) => a.id === id)), ...prev.filter((a) => !ids.includes(a.id))]);
+    await Promise.all(ids.map((id, i) => supabase().from("achievements").update({ sort_order: i + 1 }).eq("id", id)));
+    await load();
+  }, [load]);
+
+  return { items, comments, postits, achievements, gifts, tips, loaded, reload: load, reorderAchievements };
 }

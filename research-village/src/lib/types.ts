@@ -148,6 +148,7 @@ export interface Achievement {
   kind: AchievementKind;
   year: number | null;
   link_url: string;
+  sort_order?: number;
   created_at: string;
 }
 export interface AppNotification {
@@ -204,6 +205,7 @@ export interface Book {
   topic: string;
   status: "writing" | "finished";
   created_by: string | null;
+  sort_order?: number;
   created_at: string;
 }
 export interface BookEntry {

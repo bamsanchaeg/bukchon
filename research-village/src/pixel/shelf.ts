@@ -14,7 +14,7 @@ export const SPINE_COLORS = {
 export type SpineColor = keyof typeof SPINE_COLORS;
 export const SPINE_IDS = Object.keys(SPINE_COLORS) as SpineColor[];
 
-export interface ShelfBook { id: string; title: string; color: string; shelf: number; created_at: string }
+export interface ShelfBook { id: string; title: string; color: string; shelf: number; sort_order: number; created_at: string }
 export interface SpineRect { id: string; x: number; y: number; w: number; h: number; tier: number }
 
 /** 단마다 왼쪽부터 차례로 꽂은 책등의 자리 */
@@ -23,7 +23,7 @@ export function layoutShelf(books: ShelfBook[]): SpineRect[] {
   for (let t = 1; t <= TIER_COUNT; t++) {
     const base = 4 + t * TIER_H - 4;   // 이 단 선반 널빤지의 윗면
     let x = 8;
-    for (const b of books.filter((k) => k.shelf === t).sort((a, c) => a.created_at.localeCompare(c.created_at))) {
+    for (const b of books.filter((k) => k.shelf === t).sort((a, c) => a.sort_order - c.sort_order || a.created_at.localeCompare(c.created_at))) {
       const seed = [...b.id].reduce((a, ch) => a + ch.charCodeAt(0), 0);
       const w = 5 + (seed % 2), h = 17 + (seed % 11);
       out.push({ id: b.id, x, y: base - h, w, h, tier: t });

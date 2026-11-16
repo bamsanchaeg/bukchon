@@ -572,6 +572,25 @@ await t("연구실 좋아하는 책장: 주인만 꽂고, 이웃은 구경, 한 
   assert.equal(ok(await fb(m1).select("*").eq("title", "다른 사람 책장은 따로 센다")).length, 1);            // 이웃의 책장도 구경 가능
 });
 
+await t("끌어서 순서 바꾸기: 도서관 책(주민 누구나), 연구 성과·좋아하는 책(주인만)", async () => {
+  const mkb = async (title) => ok(await m1.c.from("books").insert({ village_id: village, title }).select().single());
+  const [x, y, z] = [await mkb("순서 X"), await mkb("순서 Y"), await mkb("순서 Z")];
+  ok(await m2.c.rpc("reorder_books", { p_village: village, p_ids: [z.id, x.id, y.id] }));                       // 주민 누구나 책장을 정리한다
+  const ordered = ok(await m3.c.from("books").select("id,title,sort_order").in("id", [x.id, y.id, z.id]).order("sort_order"));
+  assert.deepEqual(ordered.map((b) => b.title), ["순서 Z", "순서 X", "순서 Y"]);
+  assert.ok((await outside[0].c.rpc("reorder_books", { p_village: village, p_ids: [x.id, y.id, z.id] })).error);   // 마을 밖은 못 한다
+  assert.equal(ok(await m2.c.from("books").select("sort_order").eq("id", x.id).single()).sort_order, 2);
+  assert.equal((await m2.c.from("books").update({ sort_order: 9 }).eq("id", x.id).select()).data?.length ?? 0, 0);   // 순서 칸을 직접 고치는 건 만든 사람·마을 장만
+  // 연구 성과: 주인만
+  const ach = ok(await m1.c.from("achievements").insert({ title: "성과 1", kind: "article" }).select().single());
+  assert.equal(ok(await m1.c.from("achievements").update({ sort_order: 3 }).eq("id", ach.id).select()).length, 1);
+  assert.equal((await m2.c.from("achievements").update({ sort_order: 1 }).eq("id", ach.id).select()).data.length, 0);
+  // 좋아하는 책: 주인만, 단 안의 순서
+  const f1 = ok(await m1.c.from("favorite_books").insert({ title: "순서 책 1", shelf: 1 }).select().single());
+  assert.equal(ok(await m1.c.from("favorite_books").update({ sort_order: 5, shelf: 1 }).eq("id", f1.id).select())[0].sort_order, 5);
+  assert.equal((await m2.c.from("favorite_books").update({ sort_order: 1 }).eq("id", f1.id).select()).data.length, 0);
+});
+
 await t("이사 떡 돌리기: 마을마다 한 번, 이웃 모두에게, 잘 먹을게요 답례", async () => {
   const nf = async (u, kind) => ok(await u.c.from("notifications").select("*").eq("kind", kind));
   const members = ok(await a.c.from("village_members").select("user_id"));

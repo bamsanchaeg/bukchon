@@ -13,7 +13,7 @@ export function useLibrary(villageId: string) {
   const load = useCallback(async () => {
     const sb = supabase();
     const [b, e, m] = await Promise.all([
-      sb.from("books").select("*").eq("village_id", villageId).order("created_at", { ascending: false }),
+      sb.from("books").select("*").eq("village_id", villageId).order("sort_order").order("created_at", { ascending: false }),
       sb.from("book_entries").select("*").eq("village_id", villageId).order("created_at"),
       sb.from("meetings").select("*").eq("village_id", villageId).order("starts_at"),
     ]);
@@ -47,5 +47,12 @@ export function useLibrary(villageId: string) {
     };
   }, [load, villageId]);
 
-  return { books, entries, meetings, loaded, reload: load };
+  /** 도서관 책장의 순서를 바꾼다 (끌어서 놓은 순서대로 id 목록을 준다) */
+  const reorderBooks = useCallback(async (ids: string[]) => {
+    setBooks((prev) => [...ids.flatMap((id) => prev.filter((b) => b.id === id)), ...prev.filter((b) => !ids.includes(b.id))]);
+    await supabase().rpc("reorder_books", { p_village: villageId, p_ids: ids });
+    await load();
+  }, [villageId, load]);
+
+  return { books, entries, meetings, loaded, reload: load, reorderBooks };
 }
