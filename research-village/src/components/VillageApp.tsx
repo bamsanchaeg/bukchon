@@ -22,6 +22,7 @@ import StudyRoom from "./StudyRoomWork";
 import SayBox from "./SayBox";
 import PlazaNews from "./PlazaNews";
 import { useNewsBadge } from "@/hooks/useNewsBadge";
+import { useMonument } from "@/hooks/useMonument";
 import ChatView from "./ChatView";
 import LibraryView from "./LibraryView";
 import ShoutBoard from "./ShoutBoard";
@@ -79,6 +80,7 @@ const me = v.me!;
   const [chatId, setChatId] = useState<string | null>(null);
   const [newsOpen, setNewsOpen] = useState(false);
   const newsBadge = useNewsBadge(village.id, me.user_id);
+  const monument = useMonument(village.id);
   const [notice, setNotice] = useState("");
   const [fx, setFx] = useState<{ id: number; kind: string; from: string; to: string } | null>(null);
   const viewRef = useRef<View>("home");
@@ -308,6 +310,9 @@ const me = v.me!;
                     libraryStyle={village.library_style}
                     onOrb={() => setWishOpen(true)}
                     boardNew={newsBadge.count}
+                    monument={monument.row}
+                    canBreakMonument={monument.row?.target_user === me.user_id}
+                    onBreakMonument={() => void monument.breakIt()}
                     onTruck={() => setTruckOpen(true)}
                     onHouse={(slot) => {
                       const owner = v.residents.find((r) => r.slot === slot);

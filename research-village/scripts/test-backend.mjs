@@ -673,6 +673,25 @@ await t("소원구슬: 주민만 쓰고, 상태는 못 바꾸고, 하루 3개까
   }
 });
 
+await t("비석 이벤트: 정해진 한 사람만 부수고, 소원이 이뤄진다", async () => {
+  if (!process.env.SUPABASE_SERVICE_KEY) return;
+  const sadmin = createClient(url, process.env.SUPABASE_SERVICE_KEY, { auth: { persistSession: false } });
+  const wish = ok(await m2.c.from("wishes").insert({ village_id: village, body: "비석에서 도망치고 싶어요" }).select().single());
+  ok(await sadmin.from("monuments").insert({ village_id: village, target_user: m2.id, wish_id: wish.id }));
+  assert.equal(ok(await m1.c.from("monuments").select("*")).length, 1);                                   // 마을 주민은 비석이 있는 걸 본다
+  assert.equal(ok(await outside[0].c.from("monuments").select("*")).length, 0);                           // 마을 밖은 못 본다
+  assert.ok((await m1.c.from("monuments").insert({ village_id: village, target_user: m1.id })).error);    // 비석은 서버만 세운다
+  assert.equal((await m1.c.from("monuments").update({ broken_at: new Date().toISOString() }).eq("village_id", village).select()).data?.length ?? 0, 0);
+  for (const u of [m1, a, outside[0]]) assert.ok((await u.c.rpc("break_monument", { p_village: village })).error);   // 대상자가 아니면 못 부순다
+  assert.equal(ok(await m1.c.from("monuments").select("broken_at").single()).broken_at, null);
+  const at = ok(await m2.c.rpc("break_monument", { p_village: village }));
+  assert.ok(at);
+  assert.equal(ok(await m1.c.from("monuments").select("broken_at").single()).broken_at !== null, true);
+  assert.ok((await m2.c.rpc("break_monument", { p_village: village })).error);                            // 한 번만
+  const w = ok(await m1.c.from("wishes").select("status,reply").eq("id", wish.id).single());
+  assert.equal(w.status, "done"); assert.match(w.reply, /탈출/);
+});
+
 await t("관리자가 주민을 내보내면 집이 비고 기록이 사라진다", async () => {
   assert.ok((await m2.c.rpc("remove_member", { p_village: village, p_user: m3.id })).error);
   ok(await a.c.rpc("remove_member", { p_village: village, p_user: m3.id }));

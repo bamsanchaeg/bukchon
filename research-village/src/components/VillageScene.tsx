@@ -5,6 +5,7 @@ import { currentPhase, currentSeason, type DayPhase, type Season } from "@/lib/t
 import type { House, Resident } from "@/lib/types";
 import { bake } from "@/pixel/core";
 import { fxGrid } from "@/pixel/fx";
+import { MON_H, MON_POS, MON_W, drawMonumentBreak, monumentGrid } from "@/pixel/monument";
 import { ORB_H, ORB_POS, ORB_W, newMarkGrid, orbPedestalGrid, orbSphereGrid } from "@/pixel/orb";
 import { RACCOON_POS, TRUCK_AWNING_Y, TRUCK_H, TRUCK_POS, TRUCK_REST_SPOTS, TRUCK_W, TRUCK_WINDOW, ladleGrid, raccoonGrid, truckGrid } from "@/pixel/truck";
 import { AV_CX, AV_H, avatarGrid } from "@/pixel/avatar";
@@ -39,18 +40,26 @@ export interface SceneProps {
   onOrb?: () => void;
   /** 마을 게시판 옆에 뜨는 안 읽은 새 글 수 */
   boardNew?: number;
+  /** 비석 이벤트: 있으면 서 있고, 부서지면 먼지로 사라진다. 정해진 한 사람만 누를 수 있다 */
+  monument?: { broken_at: string | null } | null;
+  canBreakMonument?: boolean;
+  onBreakMonument?: () => void;
   /** 연구실 앞 책상을 눌렀을 때 */
   onDesk: (slot: number) => void;
   /** 이웃에게 던지기 (학위논문·마감 알림·과자). id 가 바뀔 때마다 한 번 재생된다 */
   fx?: { id: number; kind: string; from: string; to: string } | null;
 }
 
-export default function VillageScene({ houses, residents, myId, onCharacter, onHouse, onPlace, onDesk, fx, truck, onTruck, libraryStyle = "classic", onOrb, boardNew = 0 }: SceneProps) {
+export default function VillageScene({ houses, residents, myId, onCharacter, onHouse, onPlace, onDesk, fx, truck, onTruck, libraryStyle = "classic", onOrb, boardNew = 0, monument = null, canBreakMonument = false, onBreakMonument }: SceneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const tagRefs = useRef(new Map<string, HTMLButtonElement>());
   const walkers = useRef(new Map<string, Walker>());
   const data = useRef({ houses, residents, myId });
+  const monRef = useRef(monument);
+  useEffect(() => { monRef.current = monument; }, [monument]);
+  const [monFont, setMonFont] = useState(false);
+  useEffect(() => { void document.fonts.load("11px Galmuri11").then(() => setMonFont(true)); }, []);
   const newRef = useRef(boardNew);
   useEffect(() => { newRef.current = boardNew; }, [boardNew]);
   const fxRef = useRef<{ id: number; kind: string; from: string; to: string; start: number } | null>(null);
@@ -90,6 +99,7 @@ export default function VillageScene({ houses, residents, myId, onCharacter, onH
     const trees = TREES.map(([x, y, v], i) => ({ x, y, c: bake(treeGrid(pal.leaves[(v + i) % pal.leaves.length], v + i, season)) }));
     const bushes = BUSHES.map(([x, y], i) => ({ x, y, c: bake(bushGrid(pal.bush, i, pal.flowers[i % pal.flowers.length])) }));
     const fountain = [0, 1, 2, 3].map((f) => bake(fountainGrid(f)));
+    const monSrc = monFont ? bake(monumentGrid()) : null;
     const board = bake(boardGrid()), bench = bake(benchGrid()), lamp = bake(lampGrid(night || phase === "dusk"));
 
     const resize = () => {
@@ -181,6 +191,24 @@ export default function VillageScene({ houses, residents, myId, onCharacter, onH
           }
         },
       });
+      {
+        // 비석: 서 있다가, 부서지면 먼지로 흩어져 사라진다
+        const mon = monRef.current;
+        if (mon && monSrc) {
+          const age = mon.broken_at ? Date.now() - new Date(mon.broken_at).getTime() : -1;
+          const t = age < 0 ? -1 : age / 2800;
+          if (t < 1) {
+            items.push({
+              y: MON_POS.y,
+              draw: () => {
+                if (t < 0.5) shadow(MON_POS.x, MON_POS.y, 12);
+                if (t < 0) b.drawImage(monSrc, MON_POS.x - Math.floor(MON_W / 2), MON_POS.y - MON_H + 1);
+                else drawMonumentBreak(b, monSrc, MON_POS.x - Math.floor(MON_W / 2), MON_POS.y - MON_H + 1, t);
+              },
+            });
+          }
+        }
+      }
       if (newRef.current > 0) {
         // 게시판 위에서 반짝이는 N (노란 테두리)
         items.push({
@@ -392,7 +420,7 @@ export default function VillageScene({ houses, residents, myId, onCharacter, onH
       cancelAnimationFrame(raf);
       ro.disconnect();
     };
-  }, [clock, truck, libraryStyle]);
+  }, [clock, truck, libraryStyle, monFont]);
 
   const bySlot = new Map(residents.map((r) => [r.slot, r]));
   return (
@@ -406,6 +434,7 @@ export default function VillageScene({ houses, residents, myId, onCharacter, onH
 
       <button type="button" className="scene-hit" style={pct(ORB_POS.x - 10, ORB_POS.y - ORB_H, 20, ORB_H + 1)} aria-label="소원구슬 — 눌러서 소원 빌기" onClick={() => onOrb?.()} />
       {truck && <button type="button" className="scene-hit" style={pct(TRUCK_POS.x - TRUCK_W / 2, TRUCK_POS.y - TRUCK_H + 3, TRUCK_W, TRUCK_H - 4)} aria-label={truck === "night" ? "새벽 야식 트럭 — 눌러서 메뉴 보기" : "아침 밥차 — 눌러서 메뉴 보기"} onClick={() => onTruck?.()} />}
+      {monument && !monument.broken_at && canBreakMonument && <button type="button" className="scene-hit" style={pct(MON_POS.x - Math.floor(MON_W / 2), MON_POS.y - MON_H + 1, MON_W, MON_H - 2)} aria-label="비석" onClick={() => onBreakMonument?.()} />}
       {boardNew > 0 && <span className="sr-only" role="status" aria-label={`게시판에 안 읽은 새 글 ${boardNew}개`}>게시판에 새 글이 있어요</span>}
       <button type="button" className="scene-hit" style={pct(BOARD.x - 17, BOARD.y - 33, 34, 34)} aria-label="마을 게시판 — 눌러서 소식 보기" onClick={() => onPlace("board")} />
 
