@@ -27,3 +27,16 @@ export function orbSphereGrid(): Grid {
   rect(g, 3, 4, 2, 1, "#ffffff"); px(g, 3, 5, "#ffffff"); px(g, 4, 3, "#e8e2ff");
   return outline(g);
 }
+
+/** 게시판 새 글 표시: 노란 테두리를 두른 굵은 빨간 N (숫자는 쓰지 않고 반짝이기만 한다) */
+export function newMarkGrid(): Grid {
+  const g = grid(11, 13);
+  for (let r = 0; r < 9; r++) {
+    const c = Math.floor(1.5 + (3 * r) / 8);
+    for (const x of [0, 1, 5, 6, c, c + 1]) px(g, 2 + x, 2 + r, "#ff3b5c");
+  }
+  for (let r = 0; r < 9; r++) { px(g, 2, 2 + r, "#ff8aa0"); px(g, 7, 2 + r, "#ff8aa0"); }
+  outline(g, "#ffe34a");
+  outline(g, "#3a2a33");
+  return g;
+}
