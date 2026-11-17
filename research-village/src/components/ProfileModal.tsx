@@ -1,4 +1,5 @@
 "use client";
+import { lastSeenLabel } from "@/lib/time";
 import { STATUS_META } from "@/lib/constants";
 import type { Resident } from "@/lib/types";
 import { awayDays } from "@/lib/social";
@@ -26,6 +27,7 @@ export default function ProfileModal({
             <p className="flex items-center justify-center gap-2"><StatusIcon state={resident.shown} scale={2} /> {meta.label}</p>
             <p className="text-xs">{meta.where}</p>
             {!isMe && <p className="mt-1 text-xs text-ink-soft">{meta.talk}</p>}
+            {!isMe && !resident.online && <p className="mt-1 text-xs text-ink-soft">마지막 접속: {lastSeenLabel(status.left_at ?? status.last_seen_at)} ({new Date(status.left_at ?? status.last_seen_at).toLocaleString("ko-KR", { month: "long", day: "numeric", hour: "numeric", minute: "2-digit" })})</p>}
           </div>
           {!isMe && <button type="button" className="btn btn-primary w-full" onClick={onVisit}>연구실 방문하기</button>}
           {!isMe && resident.shown === "open" && <button type="button" className="btn btn-mint w-full" onClick={onChat}>대화 신청하기</button>}

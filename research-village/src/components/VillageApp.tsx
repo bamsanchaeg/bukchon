@@ -31,6 +31,7 @@ import SettingsView from "./SettingsView";
 import WelcomeBack from "./WelcomeBack";
 import UpdateNotice from "./UpdateNotice";
 import { awayDays, isGesture } from "@/lib/social";
+import { lastSeenLabel } from "@/lib/time";
 import { Notice, Window } from "./ui";
 
 type View = "home" | "room" | "visit" | "library" | "chat" | "alerts" | "settings";
@@ -344,7 +345,9 @@ const me = v.me!;
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-display text-sm">{r.profile.display_name}</span>
                         <StatusChip r={r} />
-                        {!r.online && awayDays(r.status.left_at ?? r.status.last_seen_at) >= 2 && <span className="ml-1 text-xs text-ink-soft">{awayDays(r.status.left_at ?? r.status.last_seen_at)}일째 안 와요</span>}
+                        {!r.online && (awayDays(r.status.left_at ?? r.status.last_seen_at) >= 2
+                          ? <span className="ml-1 text-xs text-ink-soft">{awayDays(r.status.left_at ?? r.status.last_seen_at)}일째 안 와요</span>
+                          : <span className="ml-1 text-xs text-ink-soft">{lastSeenLabel(r.status.left_at ?? r.status.last_seen_at)}</span>)}
                         {r.online && r.status.topic && <span className="mt-0.5 block truncate text-xs text-ink-soft">{r.status.topic}</span>}
                       </span>
                     </button>
