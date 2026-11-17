@@ -20,7 +20,7 @@ export default function WishDialog({ villageId, myId, residents, onClose }: { vi
   const [text, setText] = useState("");
   const [msg, setMsg] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
-  const name = (id: string) => residents.find((r) => r.user_id === id)?.profile.display_name ?? "떠난 주민";
+  const name = (id: string) => residents.find((r) => r.user_id === id)?.profile.display_name ?? "이웃마을 주민";
 
   const [round, setRound] = useState(0);
   const load = () => setRound((n) => n + 1);
@@ -52,10 +52,13 @@ export default function WishDialog({ villageId, myId, residents, onClose }: { vi
   return (
     <Modal title="🔮 소원구슬" tone="lilac" onClose={onClose}>
       <div className="space-y-3">
-        <p className="text-sm text-ink-soft">“이런 게 있으면 좋겠어요”를 말해 보세요. 하루에 세 개까지 들어줘요.</p>
+        <div className="card space-y-1 px-3 py-2 text-sm">
+          <p>마을에 새로 생기거나 고쳤으면 하는 기능을 말해주세요.</p>
+          <p>빌어주신 소원은 24시간 안에 검토 후 처리해요. (하루 세 개까지)</p>
+        </div>
         <form onSubmit={submit} className="space-y-1">
           <label className="label" htmlFor="wish-text">소원</label>
-          <textarea id="wish-text" className="input" rows={3} maxLength={300} placeholder="예: 광장에 모닥불이 있으면 좋겠어요" value={text} onChange={(e) => setText(e.target.value)} required />
+          <textarea id="wish-text" className="input" rows={3} maxLength={300} placeholder="예: 광장에 모닥불이 생겼으면 좋겠어요 / 도서관에서 책 검색이 되면 좋겠어요" value={text} onChange={(e) => setText(e.target.value)} required />
           <button type="submit" className="btn btn-primary" disabled={busy || !text.trim()}>소원 빌기</button>
         </form>
         {msg && <Notice kind={msg.kind}>{msg.text}</Notice>}
