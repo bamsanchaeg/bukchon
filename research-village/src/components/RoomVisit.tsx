@@ -38,7 +38,7 @@ export default function RoomVisit({
           <Window title="구경하고 남기기" tone="sky">
             <RoomBoards owner={owner} myId={myId} residents={residents} room={room} tab={tab} onTab={onTab} onTip={give.onTip} />
           </Window>
-          <FavoriteShelf books={fav.books} reload={fav.reload} editable={false} ownerName={name} />
+          <FavoriteShelf books={fav.books} names={fav.names} reload={fav.reload} editable={false} ownerName={name} />
         </div>
       </div>
       {giving && (
