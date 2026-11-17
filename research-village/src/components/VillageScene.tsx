@@ -4,7 +4,9 @@ import { STATUS_META } from "@/lib/constants";
 import { currentPhase, currentSeason, type DayPhase, type Season } from "@/lib/time";
 import type { House, Resident } from "@/lib/types";
 import { bake } from "@/pixel/core";
+import { BOOK_COLORS, flyingBookGrid } from "@/pixel/book";
 import { fxGrid } from "@/pixel/fx";
+import { TREE_BASE, christmasTreeGrid, drawLightStrings, drawTreeGlow, isChristmasSeason } from "@/pixel/christmas";
 import { MON_H, MON_POS, MON_W, drawMonumentBreak, monumentGrid } from "@/pixel/monument";
 import { ORB_H, ORB_POS, ORB_W, newMarkGrid, orbPedestalGrid, orbSphereGrid } from "@/pixel/orb";
 import { RACCOON_POS, TRUCK_AWNING_Y, TRUCK_H, TRUCK_POS, TRUCK_REST_SPOTS, TRUCK_W, TRUCK_WINDOW, ladleGrid, raccoonGrid, truckGrid } from "@/pixel/truck";
@@ -42,6 +44,8 @@ export interface SceneProps {
   boardNew?: number;
   /** 비석 이벤트: 있으면 서 있고, 부서지면 먼지로 사라진다. 정해진 한 사람만 누를 수 있다 */
   monument?: { broken_at: string | null } | null;
+  /** 공동 목표를 다 이뤘을 때 광장에서 벌어지는 한바탕 잔치 */
+  party?: { id: string; title: string; members: string[]; start: number } | null;
   canBreakMonument?: boolean;
   onBreakMonument?: () => void;
   /** 연구실 앞 책상을 눌렀을 때 */
@@ -50,7 +54,7 @@ export interface SceneProps {
   fx?: { id: number; kind: string; from: string; to: string } | null;
 }
 
-export default function VillageScene({ houses, residents, myId, onCharacter, onHouse, onPlace, onDesk, fx, truck, onTruck, libraryStyle = "classic", onOrb, boardNew = 0, monument = null, canBreakMonument = false, onBreakMonument }: SceneProps) {
+export default function VillageScene({ houses, residents, myId, onCharacter, onHouse, onPlace, onDesk, fx, truck, onTruck, libraryStyle = "classic", onOrb, boardNew = 0, monument = null, canBreakMonument = false, onBreakMonument, party = null }: SceneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const tagRefs = useRef(new Map<string, HTMLButtonElement>());
@@ -60,19 +64,21 @@ export default function VillageScene({ houses, residents, myId, onCharacter, onH
   useEffect(() => { monRef.current = monument; }, [monument]);
   const [monFont, setMonFont] = useState(false);
   useEffect(() => { void document.fonts.load("11px Galmuri11").then(() => setMonFont(true)); }, []);
+  const partyRef = useRef(party);
+  useEffect(() => { partyRef.current = party; }, [party]);
   const newRef = useRef(boardNew);
   useEffect(() => { newRef.current = boardNew; }, [boardNew]);
   const fxRef = useRef<{ id: number; kind: string; from: string; to: string; start: number } | null>(null);
   useEffect(() => {
     if (fx && fxRef.current?.id !== fx.id) fxRef.current = { ...fx, start: performance.now() };
   }, [fx]);
-  const [clock, setClock] = useState<{ season: Season; phase: DayPhase }>({ season: "spring", phase: "day" });
+  const [clock, setClock] = useState<{ season: Season; phase: DayPhase; xmas: boolean }>({ season: "spring", phase: "day", xmas: false });
   useEffect(() => {
     data.current = { houses, residents, myId };
   }, [houses, residents, myId]);
 
   useEffect(() => {
-    const update = () => setClock({ season: currentSeason(), phase: currentPhase() });
+    const update = () => setClock({ season: currentSeason(), phase: currentPhase(), xmas: isChristmasSeason() });
     update();
     const t = setInterval(update, 60_000);
     return () => clearInterval(t);
@@ -81,7 +87,7 @@ export default function VillageScene({ houses, residents, myId, onCharacter, onH
   useEffect(() => {
     const canvas = canvasRef.current, wrap = wrapRef.current;
     if (!canvas || !wrap) return;
-    const { season, phase } = clock;
+    const { season, phase, xmas } = clock;
     const pal = SEASONS[season];
     const night = phase === "night";
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -99,6 +105,7 @@ export default function VillageScene({ houses, residents, myId, onCharacter, onH
     const trees = TREES.map(([x, y, v], i) => ({ x, y, c: bake(treeGrid(pal.leaves[(v + i) % pal.leaves.length], v + i, season)) }));
     const bushes = BUSHES.map(([x, y], i) => ({ x, y, c: bake(bushGrid(pal.bush, i, pal.flowers[i % pal.flowers.length])) }));
     const fountain = [0, 1, 2, 3].map((f) => bake(fountainGrid(f)));
+    const xtree = xmas ? [0, 1, 2, 3].map((f) => bake(christmasTreeGrid(f))) : [];
     const monSrc = monFont ? bake(monumentGrid()) : null;
     const board = bake(boardGrid()), bench = bake(benchGrid()), lamp = bake(lampGrid(night || phase === "dusk"));
 
@@ -113,7 +120,17 @@ export default function VillageScene({ houses, residents, myId, onCharacter, onH
     const ro = new ResizeObserver(resize);
     ro.observe(wrap);
 
+    const partySpot = (r: Resident) => {
+      const p = partyRef.current;
+      if (!p) return null;
+      const i = p.members.indexOf(r.user_id);
+      if (i < 0) return null;
+      const n = Math.max(2, p.members.length), a = Math.PI * (0.08 + (0.84 * i) / (n - 1));
+      return { x: PLAZA.x - Math.cos(a) * 56, y: PLAZA.y + 14 + Math.sin(a) * 22, visible: true };
+    };
     const targetOf = (r: Resident) => {
+      const spot = partySpot(r);
+      if (spot) return spot;
       const door = { x: HOUSE_POS[r.slot].x + 9, y: HOUSE_POS[r.slot].y + 3 };
       if (r.shown === "open") return { x: DESK_POS[r.slot].x, y: DESK_POS[r.slot].y - 2, visible: true };
       if (r.shown === "library") return { ...LIBRARY_SPOTS[r.slot], visible: true };
@@ -171,7 +188,12 @@ export default function VillageScene({ houses, residents, myId, onCharacter, onH
       for (const t of trees) items.push({ y: t.y, draw: () => { shadow(t.x, t.y, 10); b.drawImage(t.c, t.x - 17, t.y - TREE_H + 2); } });
       for (const s of bushes) items.push({ y: s.y, draw: () => b.drawImage(s.c, s.x - 9, s.y - 11) });
       for (const l of LAMPS) items.push({ y: l.y, draw: () => b.drawImage(lamp, l.x - 5, l.y - 28) });
-      items.push({ y: PLAZA.y + 6, draw: () => b.drawImage(fountain[slow % 4], PLAZA.x - 19, PLAZA.y - 24) });
+      if (xmas) {
+        // 크리스마스 달: 분수 자리에 커다란 트리가 서고, 가로등까지 전구 줄이 이어진다
+        const base = { x: PLAZA.x, y: PLAZA.y + 6 };
+        items.push({ y: base.y, draw: () => { shadow(base.x, base.y, 24); b.drawImage(xtree[Math.floor(tick / 8) % 4], base.x - TREE_BASE.x, base.y - TREE_BASE.y); } });
+        items.push({ y: base.y + 0.5, draw: () => drawLightStrings(b, tick, base, LAMPS) });
+      } else items.push({ y: PLAZA.y + 6, draw: () => b.drawImage(fountain[slow % 4], PLAZA.x - 19, PLAZA.y - 24) });
       items.push({ y: PLAZA.y + 30, draw: () => b.drawImage(bench, PLAZA.x - 44, PLAZA.y + 18) });
       items.push({ y: PLAZA.y + 30, draw: () => b.drawImage(bench, PLAZA.x + 20, PLAZA.y + 18) });
       items.push({ y: BOARD.y, draw: () => { shadow(BOARD.x, BOARD.y, 14); b.drawImage(board, BOARD.x - 17, BOARD.y - 33); } });
@@ -322,7 +344,8 @@ export default function VillageScene({ houses, residents, myId, onCharacter, onH
         const seated = r.shown === "open" && !w.moving;
         const f = w.moving ? ((Math.floor(tick / 4) % 2) + 1) as 1 | 2 : 0;
         const av = sp(`a${JSON.stringify(r.profile.avatar)}${f}${seated ? "s" : ""}`, () => avatarGrid(r.profile.avatar, f, seated));
-        const bob = !w.moving && (slow + r.slot) % 4 === 0 ? 1 : 0;
+        const pa = partyRef.current, dancing = Boolean(pa && pa.members.includes(r.user_id) && !w.moving && (performance.now() - pa.start) / 1000 > 3);
+        const bob = dancing ? -Math.round(Math.abs(Math.sin(tick * 0.28 + r.slot)) * 6) : !w.moving && (slow + r.slot) % 4 === 0 ? 1 : 0;
         items.push({
           y: w.y,
           draw: () => {
@@ -341,6 +364,57 @@ export default function VillageScene({ houses, residents, myId, onCharacter, onH
       }
       items.sort((a, c) => a.y - c.y);
       for (const it of items) it.draw();
+      {
+        // 책걸이: 색종이가 쏟아지고 별이 터진다
+        const pa = partyRef.current;
+        if (pa) {
+          const el = (performance.now() - pa.start) / 1000;
+          if (el > 3 && el < 21) {
+            const cols = ["#ff5a5a", "#ffd23f", "#6adf7a", "#5ab0ff", "#ff8ac2", "#ffffff"];
+            for (let i = 0; i < 90; i++) {
+              const sp0 = 28 + (i * 7) % 22, x = PLAZA.x - 110 + ((i * 53) % 220) + Math.round(Math.sin(el * 2 + i) * 5);
+              const y = ((el * sp0 + i * 23) % (H + 20)) - 10;
+              b.fillStyle = cols[i % cols.length];
+              b.fillRect(Math.round(x), Math.round(y), 2, i % 3 === 0 ? 3 : 2);
+            }
+            const star = sp("fx-star", () => fxGrid("star")!);
+            pa.members.forEach((id, k) => {
+              const w = walkers.current.get(id);
+              if (!w || !w.visible || w.moving) return;
+              const u = ((el * 1.4 + k * 0.37) % 1), ang = k * 1.7;
+              b.globalAlpha = Math.max(0, 1 - u);
+              for (let j = 0; j < 3; j++) b.drawImage(star, Math.round(w.x + Math.cos(ang + j * 2.1) * (6 + u * 14) - 2), Math.round(w.y - AV_H - 2 - u * 10 + Math.sin(ang + j * 2.1) * 6));
+              b.globalAlpha = 1;
+            });
+            // 폴짝 뛰며 책을 공중으로 던진다
+            pa.members.forEach((id, k) => {
+              const w = walkers.current.get(id);
+              if (!w || !w.visible || w.moving) return;
+              for (let n = 0; n < 2; n++) {
+                const cyc = el * 0.8 + k * 0.29 + n * 0.5, u = cyc % 1, idx = Math.floor(cyc) + k + n * 3;
+                const bx = w.x + (n ? 7 : -7) + Math.sin(idx) * 4 * u, by = w.y - AV_H * 0.55 - Math.sin(Math.PI * u) * 36;
+                const bk = sp(`book${idx % BOOK_COLORS.length}`, () => flyingBookGrid(BOOK_COLORS[idx % BOOK_COLORS.length]));
+                b.save(); b.translate(Math.round(bx), Math.round(by)); b.rotate(u * Math.PI * 4 * (n ? 1 : -1));
+                b.drawImage(bk, -4, -3); b.restore();
+              }
+            });
+          }
+          // 현수막 대신 글씨만: 통통 튀는 "책걸이!"와 목표 이름
+          if (el > 1.5 && el < 21) {
+            const pop = Math.min(1, (el - 1.5) / 0.5), bounce = Math.round(Math.sin(tick * 0.25) * 2), ff = monFont ? "Galmuri11, sans-serif" : "sans-serif";
+            b.save();
+            b.textAlign = "center"; b.textBaseline = "middle"; b.lineJoin = "round";
+            b.globalAlpha = pop;
+            b.font = `${Math.round(22 * (0.6 + 0.4 * pop))}px ${ff}`;
+            b.lineWidth = 4; b.strokeStyle = "#3a2a33"; b.strokeText("책걸이!", W / 2, 26 + bounce);
+            b.fillStyle = Math.floor(tick / 6) % 2 ? "#ffe27a" : "#ffb3c8"; b.fillText("책걸이!", W / 2, 26 + bounce);
+            b.font = `11px ${ff}`; b.lineWidth = 3;
+            const label = pa.title.length > 24 ? `${pa.title.slice(0, 23)}…` : pa.title;
+            b.strokeText(label, W / 2, 45); b.fillStyle = "#ffffff"; b.fillText(label, W / 2, 45);
+            b.restore();
+          }
+        }
+      }
       {
         // 소원구슬의 은은한 보랏빛 번짐
         b.globalCompositeOperation = "lighter";
@@ -399,6 +473,7 @@ export default function VillageScene({ houses, residents, myId, onCharacter, onH
           };
           const a = night ? 0.5 : 0.22;
           for (const l of LAMPS) glow(l.x, l.y - 23, 26, a);
+          if (xmas) drawTreeGlow(b, { x: PLAZA.x, y: PLAZA.y + 6 }, tick, a * 1.2);
           if (truck) glow(TRUCK_POS.x - 9, TRUCK_POS.y - 17, 26, a + 0.15);
           for (const h of houses) if (bySlot.get(h.slot)?.online) { const m = HOUSE_META[houseTypeOf(h.style)]; glow(HOUSE_POS[h.slot].x - 27 + m.window.x + 5, HOUSE_POS[h.slot].y - 62 + m.window.y + 5, 20, a); }
           if (libLit) { glow(LIBRARY.x - 27, LIBRARY.y - 30, 18, a); glow(LIBRARY.x + 27, LIBRARY.y - 30, 18, a); }
