@@ -102,7 +102,7 @@ export default function StudyRoomWork({
             {section === "notes" && <ResearchNotes data={notes} userId={me.user_id} openId={target?.kind === "note" ? target.key : undefined} />}
             {section === "diary" && <DiaryPanel myId={me.user_id} entries={diary.entries} loaded={diary.loaded} reload={diary.reload} openId={target?.kind === "diary" ? target.key : undefined} />}
             {section === "archive" && <ArchivePanel userId={me.user_id} onOpen={(t) => { setTarget(t); setSection(t.kind === "journal" ? "journal" : t.kind === "note" ? "notes" : "diary"); void notes.reload(); void diary.reload(); }} />}
-            {section === "shelf" && <FavoriteShelf books={fav.books} reload={fav.reload} editable bare ownerName={me.profile.display_name} />}
+            {section === "shelf" && <FavoriteShelf books={fav.books} names={fav.names} reload={fav.reload} editable bare ownerName={me.profile.display_name} />}
             {section === "boards" && <RoomBoards owner={me} myId={me.user_id} residents={residents} room={room} tab={tab} onTab={onTab} />}
           </div>
         </Window>

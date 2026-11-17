@@ -15,11 +15,11 @@ const ERRORS: [string, string][] = [["shelf_full", "이 단은 가득 찼어요.
 const SCALE = 4;
 const tierId = (t: number) => `tier-${t}`;
 
-function Tier({ tier, ids, byId, count, onPick, picked }: { tier: number; ids: string[]; byId: Map<string, FavBook>; count: number; onPick: (id: string) => void; picked: string | null }) {
+function Tier({ tier, label, ids, byId, count, onPick, picked, header }: { tier: number; label: string; ids: string[]; byId: Map<string, FavBook>; count: number; onPick: (id: string) => void; picked: string | null; header: React.ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id: tierId(tier) });
   return (
-    <div ref={setNodeRef} className="card p-2" style={{ background: isOver ? "#fff3c4" : undefined }} role="group" aria-label={`${SHELF_NAMES[tier - 1]} (${count}/${SHELF_MAX})`}>
-      <p className="text-xs text-ink-soft">{SHELF_NAMES[tier - 1]} · {count}/{SHELF_MAX}</p>
+    <div ref={setNodeRef} className="card p-2" style={{ background: isOver ? "#fff3c4" : undefined }} role="group" aria-label={`${label} (${count}/${SHELF_MAX})`}>
+      {header}
       <SortableContext items={ids} strategy={horizontalListSortingStrategy}>
         <div className="flex min-h-[34px] flex-wrap gap-1.5 pt-1">
           {ids.length === 0 && <span className="self-center text-xs text-ink-soft">여기로 끌어다 놓으세요</span>}
@@ -27,7 +27,7 @@ function Tier({ tier, ids, byId, count, onPick, picked }: { tier: number; ids: s
             const b = byId.get(id)!;
             return (
               <SortableItem key={id} id={id}>
-                <button type="button" onClick={() => onPick(id)} aria-pressed={picked === id} aria-label={`${b.title}, ${SHELF_NAMES[tier - 1]}`} className="flex max-w-[11rem] items-center gap-1 border border-ink bg-paper px-1.5 py-0.5 text-xs">
+                <button type="button" onClick={() => onPick(id)} aria-pressed={picked === id} aria-label={`${b.title}, ${label}`} className="flex max-w-[11rem] items-center gap-1 border border-ink bg-paper px-1.5 py-0.5 text-xs">
                   <span className="inline-block h-4 w-2 shrink-0" style={{ background: SPINE_COLORS[b.color as SpineColor] ?? "#e0605a" }} aria-hidden />
                   <span className="truncate">{b.title}</span>
                 </button>
@@ -41,13 +41,23 @@ function Tier({ tier, ids, byId, count, onPick, picked }: { tier: number; ids: s
 }
 
 /** 연구실의 좋아하는 책장: 주인은 원하는 단에 책을 꽂고 옮기고 빼고, 방문한 이웃은 구경만 한다 */
-export default function FavoriteShelf({ books, reload, editable, ownerName, bare = false }: { books: FavBook[] | null; reload: () => void; editable: boolean; ownerName: string; bare?: boolean }) {
+export default function FavoriteShelf({ books, names, reload, editable, ownerName, bare = false }: { books: FavBook[] | null; names: Record<number, string>; reload: () => void; editable: boolean; ownerName: string; bare?: boolean }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [form, setForm] = useState({ title: "", author: "", note: "", color: "red" as SpineColor, shelf: 1 });
   const [msg, setMsg] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sensors = useSortSensors();
+  const tn = (t: number) => names[t] || SHELF_NAMES[t - 1];
+  const [renaming, setRenaming] = useState<number | null>(null);
+  const [nameDraft, setNameDraft] = useState("");
+  const saveName = async (t: number, value: string) => {
+    setMsg(null);
+    const v = value.trim();
+    const { error } = v ? await supabase().from("favorite_shelf_names").upsert({ shelf: t, name: v }, { onConflict: "owner_id,shelf" }) : await supabase().from("favorite_shelf_names").delete().eq("shelf", t);
+    if (error) { fail(error); return; }
+    setRenaming(null); reload();
+  };
   const [cols, setCols] = useState<Record<number, string[]> | null>(null);   // 끄는 동안의 임시 배치
   const [dragId, setDragId] = useState<string | null>(null);
   const fail = (e: unknown) => { const t = errorMessage(e); setMsg({ kind: "error", text: ERRORS.find(([k]) => t.includes(k))?.[1] ?? t }); };
@@ -70,14 +80,14 @@ export default function FavoriteShelf({ books, reload, editable, ownerName, bare
     setBusy(false);
     if (error) { fail(error); return; }
     setForm({ ...form, title: "", author: "", note: "" });
-    setMsg({ kind: "ok", text: `‘${form.title.trim()}’을(를) ${SHELF_NAMES[form.shelf - 1]}에 꽂았어요 📚` });
+    setMsg({ kind: "ok", text: `‘${form.title.trim()}’을(를) ${tn(form.shelf)}에 꽂았어요 📚` });
     reload();
   };
   const sel = list.find((b) => b.id === selected) ?? null;
   const move = async (b: FavBook, shelf: number) => {
     setMsg(null);
     const { error } = await supabase().from("favorite_books").update({ shelf }).eq("id", b.id);
-    if (error) fail(error); else { setMsg({ kind: "ok", text: `${SHELF_NAMES[shelf - 1]}으로 옮겼어요.` }); reload(); }
+    if (error) fail(error); else { setMsg({ kind: "ok", text: `‘${tn(shelf)}’(으)로 옮겼어요.` }); reload(); }
   };
   const remove = async (b: FavBook) => {
     if (!window.confirm(`‘${b.title}’을(를) 책장에서 뺄까요?`)) return;
@@ -136,12 +146,17 @@ export default function FavoriteShelf({ books, reload, editable, ownerName, bare
           {spines.map((r) => {
             const b = list.find((x) => x.id === r.id)!;
             return (
-              <button key={r.id} type="button" aria-pressed={selected === r.id} aria-label={`${b.title}${b.author ? ` — ${b.author}` : ""}, ${SHELF_NAMES[b.shelf - 1]}`} onClick={() => setSelected(selected === r.id ? null : r.id)}
+              <button key={r.id} type="button" aria-pressed={selected === r.id} aria-label={`${b.title}${b.author ? ` — ${b.author}` : ""}, ${tn(b.shelf)}`} onClick={() => setSelected(selected === r.id ? null : r.id)}
                 className="absolute"
                 style={{ left: `${((r.x - 1) / SHELF_W) * 100}%`, top: `${((r.y - 4) / SHELF_H) * 100}%`, width: `${((r.w + 2) / SHELF_W) * 100}%`, height: `${((r.h + 4) / SHELF_H) * 100}%` }} />
             );
           })}
         </div>
+        {Object.keys(names).length > 0 && (
+          <ul className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-ink-soft" aria-label="책장 단 이름">
+            {[1, 2, 3, 4].map((t) => <li key={t}>{names[t] ? <>{t}단 · <span className="text-ink">{names[t]}</span></> : SHELF_NAMES[t - 1]}</li>)}
+          </ul>
+        )}
         {books === null && <p className="text-sm text-ink-soft">책장을 정리하는 중…</p>}
         {books?.length === 0 && <p className="text-center text-sm text-ink-soft">{editable ? "아직 꽂힌 책이 없어요. 첫 책을 꽂아 보세요." : "아직 꽂힌 책이 없어요."}</p>}
         {editable && list.length > 0 && (
@@ -149,7 +164,23 @@ export default function FavoriteShelf({ books, reload, editable, ownerName, bare
             <p className="label">책 정리하기 <span className="text-ink-soft">(끌어서 순서와 단을 바꿔요. 폰은 꾹 눌러서 끌어요)</span></p>
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={(e) => void onDragEnd(e)} onDragCancel={() => { setDragId(null); setCols(null); }}>
               <div className="space-y-1.5">
-                {[1, 2, 3, 4].map((t) => <Tier key={t} tier={t} ids={layout[t]} byId={byId} count={layout[t].length} picked={selected} onPick={(id) => setSelected(selected === id ? null : id)} />)}
+                {[1, 2, 3, 4].map((t) => (
+                  <Tier key={t} tier={t} label={tn(t)} ids={layout[t]} byId={byId} count={layout[t].length} picked={selected} onPick={(id) => setSelected(selected === id ? null : id)}
+                    header={renaming === t ? (
+                      <form className="flex flex-wrap items-center gap-1" onSubmit={(e) => { e.preventDefault(); void saveName(t, nameDraft); }}>
+                        <label className="sr-only" htmlFor={`tier-name-${t}`}>{SHELF_NAMES[t - 1]} 이름</label>
+                        <input id={`tier-name-${t}`} className="input !w-44" maxLength={20} placeholder="예: 여행, 어릴 때 읽은 책" value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} autoFocus />
+                        <button type="submit" className="btn btn-primary btn-sm">저장</button>
+                        <button type="button" className="btn btn-sm" onClick={() => void saveName(t, "")}>기본 이름으로</button>
+                        <button type="button" className="btn btn-sm" onClick={() => setRenaming(null)}>취소</button>
+                      </form>
+                    ) : (
+                      <p className="flex flex-wrap items-center gap-2 text-xs text-ink-soft">
+                        <span className="font-display text-sm text-ink">{tn(t)}</span> · {layout[t].length}/{SHELF_MAX}
+                        <button type="button" className="btn btn-sm" onClick={() => { setNameDraft(names[t] ?? ""); setRenaming(t); }}>이름 바꾸기</button>
+                      </p>
+                    )} />
+                ))}
               </div>
               <DragOverlay>{dragId && byId.get(dragId) ? <span className="border border-ink bg-paper px-1.5 py-0.5 text-xs shadow">{byId.get(dragId)!.title}</span> : null}</DragOverlay>
             </DndContext>
@@ -162,13 +193,13 @@ export default function FavoriteShelf({ books, reload, editable, ownerName, bare
               <h3 className="font-display text-lg">{sel.title}</h3>
               {sel.author && <span className="text-sm text-ink-soft">{sel.author}</span>}
             </div>
-            <p className="text-xs text-ink-soft">{ownerName}님이 {SHELF_NAMES[sel.shelf - 1]}에 꽂았어요 · {relativeTime(sel.created_at)}</p>
+            <p className="text-xs text-ink-soft">{ownerName}님이 ‘{tn(sel.shelf)}’에 꽂았어요 · {relativeTime(sel.created_at)}</p>
             {sel.note && <p className="text-sm">“{sel.note}”</p>}
             {editable && (
               <div className="flex flex-wrap items-center gap-2">
                 <label className="text-xs text-ink-soft" htmlFor="fav-move">단 옮기기</label>
                 <select id="fav-move" className="input !w-auto" value={sel.shelf} onChange={(e) => void move(sel, Number(e.target.value))}>
-                  {SHELF_NAMES.map((n, i) => <option key={n} value={i + 1}>{n}</option>)}
+                  {SHELF_NAMES.map((_, i) => <option key={i} value={i + 1}>{tn(i + 1)}</option>)}
                 </select>
                 <button type="button" className="btn btn-sm btn-danger" onClick={() => void remove(sel)}>책장에서 빼기</button>
               </div>
@@ -193,7 +224,7 @@ export default function FavoriteShelf({ books, reload, editable, ownerName, bare
           <div className="flex flex-wrap items-center gap-2">
             <label className="text-sm" htmlFor="fav-shelf">꽂을 단</label>
             <select id="fav-shelf" className="input !w-auto" value={form.shelf} onChange={(e) => setForm({ ...form, shelf: Number(e.target.value) })}>
-              {SHELF_NAMES.map((n, i) => <option key={n} value={i + 1}>{n} ({count(i + 1)}/{SHELF_MAX})</option>)}
+              {SHELF_NAMES.map((_, i) => <option key={i} value={i + 1}>{tn(i + 1)} ({count(i + 1)}/{SHELF_MAX})</option>)}
             </select>
             <button type="submit" className="btn btn-primary" disabled={busy || !form.title.trim()}>책 꽂기</button>
           </div>

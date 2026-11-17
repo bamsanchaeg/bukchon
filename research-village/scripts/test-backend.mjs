@@ -591,6 +591,24 @@ await t("끌어서 순서 바꾸기: 도서관 책(주민 누구나), 연구 성
   assert.equal((await m2.c.from("favorite_books").update({ sort_order: 1 }).eq("id", f1.id).select()).data.length, 0);
 });
 
+await t("좋아하는 책장 단 이름: 주인만 짓고, 이웃은 본다", async () => {
+  const nm = (u) => u.c.from("favorite_shelf_names");
+  ok(await nm(m1).upsert({ shelf: 1, name: "여행" }, { onConflict: "owner_id,shelf" }));
+  ok(await nm(m1).upsert({ shelf: 1, name: "어릴 때 읽은 책" }, { onConflict: "owner_id,shelf" }));              // 같은 단은 이름이 바뀐다
+  ok(await nm(m1).upsert({ shelf: 3, name: "밤에 읽는 책" }, { onConflict: "owner_id,shelf" }));
+  const rows = ok(await nm(m2).select("shelf,name").eq("owner_id", m1.id)).sort((x, y) => x.shelf - y.shelf);       // 이웃도 본다
+  assert.deepEqual(rows, [{ shelf: 1, name: "어릴 때 읽은 책" }, { shelf: 3, name: "밤에 읽는 책" }]);
+  assert.equal(ok(await nm(outside[0]).select("*").eq("owner_id", m1.id)).length, 0);                                // 마을 밖은 못 본다
+  assert.ok((await nm(m1).upsert({ shelf: 2, name: "   " }, { onConflict: "owner_id,shelf" })).error);               // 빈 이름 불가
+  assert.ok((await nm(m1).upsert({ shelf: 2, name: "가".repeat(21) }, { onConflict: "owner_id,shelf" })).error);     // 20자까지
+  assert.ok((await nm(m1).upsert({ shelf: 5, name: "다섯째" }, { onConflict: "owner_id,shelf" })).error);           // 단은 1~4
+  ok(await nm(m2).upsert({ shelf: 1, name: "내 책장 이름" }, { onConflict: "owner_id,shelf" }));                       // 이웃이 같은 단에 이름을 지어도 자기 책장에만 붙는다
+  assert.equal(ok(await nm(m1).select("name").eq("owner_id", m1.id).eq("shelf", 1).single()).name, "어릴 때 읽은 책");   // 내 책장 이름은 그대로
+  assert.equal(ok(await nm(m1).select("name").eq("owner_id", m2.id).eq("shelf", 1).single()).name, "내 책장 이름");
+  assert.equal((await nm(m2).delete().eq("owner_id", m1.id).select()).data?.length ?? 0, 0);                         // 남이 지우지 못한다
+  assert.equal(ok(await nm(m1).delete().eq("shelf", 3).select()).length, 1);                                         // 주인은 기본 이름으로 되돌릴 수 있다
+});
+
 await t("건네기 간식 종류", async () => {
   for (const kind of ["mochi", "yakgwa", "tangerine", "apple", "minishell", "haribo"]) ok(await m1.c.rpc("send_gift", { p_village: village, p_target: m2.id, p_kind: kind, p_note: "맛있게 드세요" }));
   assert.ok((await m1.c.rpc("send_gift", { p_village: village, p_target: m2.id, p_kind: "pizza", p_note: "" })).error);               // 정해진 종류만
