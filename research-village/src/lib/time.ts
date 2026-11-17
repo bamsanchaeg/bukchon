@@ -39,6 +39,16 @@ export function relativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
 }
 
+/** 오프라인인 주민이 마지막으로 접속한 때를 "3시간 전 접속"처럼 알려 준다 */
+export function lastSeenLabel(iso: string, now = Date.now()): string {
+  const diff = (now - new Date(iso).getTime()) / 1000;
+  if (diff < 60) return "방금 접속";
+  if (diff < 3600) return `${Math.floor(diff / 60)}분 전 접속`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전 접속`;
+  if (diff < 86400 * 7) return `${Math.floor(diff / 86400)}일 전 접속`;
+  return `${new Date(iso).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })} 접속`;
+}
+
 export type Season = "spring" | "summer" | "autumn" | "winter";
 export function currentSeason(d = new Date()): Season {
   const m = d.getMonth() + 1;
