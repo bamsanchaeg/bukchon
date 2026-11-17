@@ -7,7 +7,6 @@ import type { Achievement, AchievementKind, BoardTab, Resident } from "@/lib/typ
 import type { useRoom } from "@/hooks/useRoom";
 import PublicJournal from "./PublicJournal";
 import PublicDeadlines from "./PublicDeadlines";
-import { TipBox } from "./GiveBox";
 import { giftOf } from "@/lib/social";
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -18,14 +17,14 @@ type Room = ReturnType<typeof useRoom>;
 
 const TABS: { id: BoardTab; label: string }[] = [
   { id: "whiteboard", label: "화이트보드" },
-  { id: "shelf", label: "책장" },
+  { id: "shelf", label: "연구 성과" },
 ];
 
 /** 화이트보드(고민과 댓글) · 포스트잇 · 책장(연구 성과) 패널. 주인이면 쓰고 지울 수 있고, 방문자는 댓글과 포스트잇을 남길 수 있다. */
 export default function RoomBoards({
-  owner, myId, residents, room, tab, onTab, onTip,
+  owner, myId, residents, room, tab, onTab, only,
 }: {
-  owner: Resident; myId: string; residents: Resident[]; room: Room; tab: BoardTab; onTab: (t: BoardTab) => void; onTip?: (title: string, note: string) => Promise<string | null> | string | null;
+  owner: Resident; myId: string; residents: Resident[]; room: Room; tab: BoardTab; onTab: (t: BoardTab) => void; only?: BoardTab;
 }) {
   const isOwner = owner.user_id === myId;
   const who = (id: string) => residents.find((r) => r.user_id === id)?.profile.display_name ?? "이웃마을 주민";
@@ -187,12 +186,11 @@ export default function RoomBoards({
           </div>
           {shelfErr && <Notice kind="error">{shelfErr}</Notice>}
           <div className="flex flex-wrap gap-1">
-            <button type="submit" className="btn btn-primary btn-sm" disabled={!form.title.trim()}>책장에 꽂기</button>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={!form.title.trim()}>연구 성과 올리기</button>
             <a className="btn btn-sm" href={rissSearchUrl(form.title || owner.profile.display_name)} target="_blank" rel="noopener noreferrer">RISS에서 찾기 (새 창)</a>
           </div>
         </form>
       )}
-      {!isOwner && onTip && <TipBox name={owner.profile.display_name} onTip={onTip} />}
       {room.tips.length > 0 && (
         <section aria-label="추천받은 책" className="space-y-1">
           <h3 className="label">{isOwner ? "이웃이 추천해 준 책" : `${owner.profile.display_name}님에게 추천된 책`}</h3>
@@ -206,7 +204,7 @@ export default function RoomBoards({
           </ul>
         </section>
       )}
-      {room.loaded && room.achievements.length === 0 && room.tips.length === 0 && <p className="py-3 text-center text-sm text-ink-soft">{isOwner ? "아직 책장이 비어 있어요." : "아직 꽂힌 책이 없어요."}</p>}
+      {room.loaded && room.achievements.length === 0 && room.tips.length === 0 && <p className="py-3 text-center text-sm text-ink-soft">{isOwner ? "아직 올린 연구 성과가 없어요." : "아직 올라온 연구 성과가 없어요."}</p>}
       {isOwner && room.achievements.length > 1 && <p className="text-xs text-ink-soft">끌어서 순서를 바꿀 수 있어요. (폰은 꾹 눌러서 끌어요)</p>}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onAchDrag}>
       <SortableContext items={room.achievements.map((a) => a.id)} strategy={verticalListSortingStrategy}>
@@ -223,7 +221,7 @@ export default function RoomBoards({
                 </a>
               )}
             </div>
-            {isOwner && <button type="button" className="btn btn-sm btn-danger" onClick={() => window.confirm("책장에서 뺄까요?") && void run(sb.from("achievements").delete().eq("id", a.id))}>빼기</button>}
+            {isOwner && <button type="button" className="btn btn-sm btn-danger" onClick={() => window.confirm("연구 성과에서 뺄까요?") && void run(sb.from("achievements").delete().eq("id", a.id))}>빼기</button>}
           </SortableItem>
         ))}
       </ul>
@@ -235,16 +233,16 @@ export default function RoomBoards({
   const count = { whiteboard: room.items.length + room.postits.length, shelf: room.achievements.length };
   return (
     <div>
-      <div role="tablist" aria-label="연구실 게시판" className="flex flex-wrap border-b border-ink bg-[#fff3c4] px-1 pt-1">
+      {!only && <div role="tablist" aria-label="연구실 게시판" className="flex flex-wrap border-b border-ink bg-[#fff3c4] px-1 pt-1">
         {TABS.map((t) => (
           <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => onTab(t.id)} className={`btn btn-sm ${tab === t.id ? "btn-primary" : ""}`}>
             {t.label}{room.loaded ? ` ${count[t.id]}` : ""}
           </button>
         ))}
-      </div>
+      </div>}
       <div className="space-y-3 p-3">
         {error && <Notice kind="error">{error}</Notice>}
-        {tab === "whiteboard" ? whiteboard : shelf}
+        {(only ?? tab) === "whiteboard" ? whiteboard : shelf}
       </div>
     </div>
   );

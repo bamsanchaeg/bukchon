@@ -17,17 +17,20 @@ import RoomBoards from "./RoomBoards";
 import RoomCanvas from "./RoomCanvas";
 import LabDecorator from "./LabDecorator";
 import { Modal, Window } from "./ui";
+import SnackBox from "./SnackBox";
 import WelcomeLetter, { LetterDrawer } from "./WelcomeLetter";
 
-type Section = "journal" | "notes" | "diary" | "boards" | "shelf" | "archive" | "drawer";
+type Section = "journal" | "notes" | "diary" | "boards" | "results" | "shelf" | "archive" | "drawer" | "snacks";
 const SECTIONS: { id: Section; label: string }[] = [
   { id: "journal", label: "오늘의 일지" },
   { id: "notes", label: "연구노트" },
   { id: "diary", label: "다이어리" },
-  { id: "boards", label: "화이트보드 · 책장" },
+  { id: "boards", label: "화이트보드" },
+  { id: "results", label: "연구 성과" },
   { id: "shelf", label: "좋아하는 책" },
   { id: "archive", label: "찾기 · 내보내기" },
   { id: "drawer", label: "편지 서랍" },
+  { id: "snacks", label: "간식 상자" },
 ];
 
 /** 내 연구실(작업 화면): 글쓰기 창이 가운데에 크게, 왼쪽엔 작은 연구실 그림과 항목 목록, 오른쪽엔 마감·할 일. 집중 모드는 가운데만 남긴다. */
@@ -55,8 +58,8 @@ export default function StudyRoomWork({
           {roomView === "view" ? (
             <div className="space-y-3">
               <RoomCanvas owner={me} inside={inside} studying={st === "focus"} boardCount={room.items.length} postitColors={room.postits.map((p) => p.color)} shelf={room.achievements.map((a) => a.kind)} favs={fav.books ?? []} gifts={room.gifts.map((g) => g.kind)} tips={room.tips.length}
-                note={inside ? undefined : `지금은 ${STATUS_META[st].where}`} onPick={(t) => { onTab(t); setSection("boards"); setRoomView(null); }} />
-              <p className="text-xs text-ink-soft">화이트보드나 책장을 누르면 그 화면으로 가요.</p>
+                note={inside ? undefined : `지금은 ${STATUS_META[st].where}`} onPick={(t) => { onTab(t); setSection(t === "shelf" ? "results" : "boards"); setRoomView(null); }} />
+              <p className="text-xs text-ink-soft">화이트보드나 책장(연구 성과)을 누르면 그 화면으로 가요.</p>
               <div className="flex gap-1">
                 <button type="button" className="btn btn-primary" onClick={() => setRoomView("decorate")}>꾸미기</button>
                 <button type="button" className="btn" onClick={() => setRoomView(null)}>닫기</button>
@@ -100,14 +103,15 @@ export default function StudyRoomWork({
           </nav>
         )}
         <Window title={current.label} tone="butter" actions={<button type="button" className="btn btn-sm" aria-pressed={focus} onClick={() => setFocus((f) => !f)}>{focus ? "집중 모드 끄기" : "집중 모드"}</button>}>
-          <div className={`lab-main mx-auto ${focus ? "lab-focus max-w-[64rem]" : section === "boards" ? "max-w-[52rem]" : "max-w-[42rem]"}`}>
+          <div className={`lab-main mx-auto ${focus ? "lab-focus max-w-[64rem]" : section === "boards" || section === "results" ? "max-w-[52rem]" : "max-w-[42rem]"}`}>
+            {section === "snacks" && <SnackBox residents={residents} myId={me.user_id} />}
             {section === "drawer" && <LetterDrawer onOpen={() => setLetter(true)} />}
             {section === "journal" && <JournalCard userId={me.user_id} villages={villages} initialDate={target?.kind === "journal" ? target.key : undefined} />}
             {section === "notes" && <ResearchNotes data={notes} userId={me.user_id} openId={target?.kind === "note" ? target.key : undefined} />}
             {section === "diary" && <DiaryPanel myId={me.user_id} entries={diary.entries} loaded={diary.loaded} reload={diary.reload} openId={target?.kind === "diary" ? target.key : undefined} />}
             {section === "archive" && <ArchivePanel userId={me.user_id} onOpen={(t) => { setTarget(t); setSection(t.kind === "journal" ? "journal" : t.kind === "note" ? "notes" : "diary"); void notes.reload(); void diary.reload(); }} />}
             {section === "shelf" && <FavoriteShelf books={fav.books} names={fav.names} reload={fav.reload} editable bare ownerName={me.profile.display_name} />}
-            {section === "boards" && <RoomBoards owner={me} myId={me.user_id} residents={residents} room={room} tab={tab} onTab={onTab} />}
+            {(section === "boards" || section === "results") && <RoomBoards owner={me} myId={me.user_id} residents={residents} room={room} tab={tab} onTab={onTab} only={section === "results" ? "shelf" : "whiteboard"} />}
           </div>
         </Window>
       </div>
@@ -115,7 +119,7 @@ export default function StudyRoomWork({
       {!focus && (
         <div className="order-3 space-y-4">
           <Window title="마감 일정" tone="butter"><DeadlinePanel planner={planner} userId={me.user_id} names={Object.fromEntries(residents.map((r) => [r.user_id, r.profile.display_name]))} /></Window>
-          <Window title="할 일" tone="butter"><TodoPanel planner={planner} userId={me.user_id} /></Window>
+          <Window title="오늘의 체크리스트" tone="butter"><TodoPanel planner={planner} userId={me.user_id} /></Window>
         </div>
       )}
       {letter && <WelcomeLetter onClose={() => setLetter(false)} />}
