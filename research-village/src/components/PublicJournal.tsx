@@ -1,4 +1,5 @@
 "use client";
+import { speakerName, speakerStyle } from "@/lib/tone";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { relativeTime, dateLabel } from "@/lib/time";
@@ -63,7 +64,7 @@ export default function PublicJournal({
 
   return (
     <section aria-label={`${isOwner ? "내가" : `${name}님이`} 공개한 일지`} className="space-y-2">
-      <h3 className="label">{isOwner ? "내가 공개한 일지" : `${name}님의 공개 일지`}</h3>
+      <h3 className="label">{isOwner ? "내가 공개한 일지" : "공개 일지"}</h3>
       {list.length === 0 ? (
         <p className="px-box p-3 text-sm text-ink-soft" style={{ background: "#fdfdfb", ["--bd" as string]: "#8a8fa3" }}>
           {isOwner ? "오늘의 일지에서 ‘마을 주민에게 공개’를 누르면 여기에 보여요." : "아직 공개한 일지가 없어요."}
@@ -75,7 +76,7 @@ export default function PublicJournal({
             const cs = comments.filter((c) => c.log_date === l.log_date);
             return (
               <li key={l.log_date}>
-                <details open={i === 0} className="px-box p-2" style={{ background: "#fdfdfb", ["--bd" as string]: "#8a8fa3" }}>
+                <details open={i === 0} className="px-box p-2" style={{ background: "#fff8e4", ["--bd" as string]: "#8a8fa3" }}>
                   <summary className="cursor-pointer font-display text-sm">{l.log_date} {dateLabel(l.log_date).split(" ").pop()} <span className="font-body text-xs text-ink-soft">· {l.body.replace(/\s+/g, " ").slice(0, 28)}{cs.length ? ` · 댓글 ${cs.length}` : ""}</span></summary>
                   <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-7">{l.body}</p>
                   <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="일지 반응">
@@ -92,8 +93,8 @@ export default function PublicJournal({
                   </div>
                   <ul className="mt-2 space-y-1" aria-label="일지 댓글">
                     {cs.map((c) => (
-                      <li key={c.id} className="flex items-start gap-2 text-sm">
-                        <span className="min-w-0 flex-1 break-words"><span className="font-display">{names[c.author_id] ?? "이웃마을 주민"}:</span> {c.body} <span className="text-xs text-ink-soft">{relativeTime(c.created_at)}</span></span>
+                      <li key={c.id} className="flex items-start gap-2 text-sm" style={speakerStyle(c.author_id, ownerId, myId)}>
+                        <span className="min-w-0 flex-1 break-words"><span className="font-display">{speakerName(c.author_id, myId, names[c.author_id] ?? "이웃마을 주민")}:</span> {c.body} <span className="text-xs text-ink-soft">{relativeTime(c.created_at)}</span></span>
                         {(c.author_id === myId || isOwner) && <button type="button" className="text-xs text-ink-soft underline" aria-label="댓글 지우기" onClick={async () => { await supabase().from("journal_comments").delete().eq("id", c.id); await load(); }}>지우기</button>}
                       </li>
                     ))}
