@@ -6,15 +6,17 @@ import type { BoardTab, Resident } from "@/lib/types";
 import { useState } from "react";
 import FavoriteShelf from "./FavoriteShelf";
 import { GiftBox } from "./GiveBox";
+import PortalDialog from "./LabPortal";
 import RoomBoards from "./RoomBoards";
 import RoomCanvas from "./RoomCanvas";
 import { Modal, Window } from "./ui";
 
 /** 다른 주민의 연구실 방문. 주민이 연구실 안에서 집중하고 있어도 들어가 볼 수 있다. */
 export default function RoomVisit({
-  owner, myId, residents, tab, onTab, onBack, onProfile, give,
-}: { owner: Resident; myId: string; residents: Resident[]; tab: BoardTab; onTab: (t: BoardTab) => void; onBack: () => void; onProfile: () => void; give: { onGift: React.ComponentProps<typeof GiftBox>["onGift"] } }) {
+  owner, myId, residents, tab, onTab, onBack, onProfile, onGoto, give,
+}: { owner: Resident; myId: string; residents: Resident[]; tab: BoardTab; onTab: (t: BoardTab) => void; onBack: () => void; onProfile: () => void; onGoto: (userId: string) => void; give: { onGift: React.ComponentProps<typeof GiftBox>["onGift"] } }) {
   const [giving, setGiving] = useState(false);
+  const [portal, setPortal] = useState(false);
   const room = useRoom(owner.user_id, false);
   const fav = useFavBooks(owner.user_id);
   const meta = STATUS_META[owner.shown];
@@ -31,7 +33,7 @@ export default function RoomVisit({
         <Window title={`${name}의 연구실`} tone="butter">
           <RoomCanvas
             owner={owner} inside={inRoom} studying={inRoom} boardCount={room.items.length} postitColors={room.postits.map((p) => p.color)} shelf={room.achievements.map((a) => a.kind)} favs={fav.books ?? []} gifts={room.gifts.map((g) => g.kind)} tips={room.tips.length}
-            note={inRoom ? undefined : `${name}님은 ${owner.shown === "offline" ? "자리에 없어요" : meta.where}`} onPick={(t) => { onTab(t); document.getElementById(t === "shelf" ? "visit-results" : "visit-board")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} onDesk={() => setGiving(true)}
+            note={inRoom ? undefined : `${name}님은 ${owner.shown === "offline" ? "자리에 없어요" : meta.where}`} onPick={(t) => { onTab(t); document.getElementById(t === "shelf" ? "visit-results" : "visit-board")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} onDesk={() => setGiving(true)} onPortal={() => setPortal(true)}
           />
           <p className="px-2 pb-1 pt-1 text-center text-xs text-ink-soft">책상을 누르면 커피나 간식을 올려 줄 수 있어요</p>
         </Window>
@@ -46,6 +48,7 @@ export default function RoomVisit({
           </Window></div>
         </div>
       </div>
+      {portal && <PortalDialog residents={residents} myId={myId} currentId={owner.user_id} onGo={onGoto} onClose={() => setPortal(false)} />}
       {giving && (
         <Modal title={`${name}님 책상에 건네기`} tone="mint" onClose={() => setGiving(false)}>
           <GiftBox name={name} onGift={give.onGift} onDone={() => setTimeout(() => setGiving(false), 900)} />
