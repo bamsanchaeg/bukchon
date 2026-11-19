@@ -3,7 +3,7 @@ import PasswordForm from "./PasswordForm";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { errorMessage, supabase } from "@/lib/supabase";
 import { VILLAGE_CAPACITY } from "@/lib/constants";
-import type { HouseType, Profile, Resident, Village } from "@/lib/types";
+import type { HouseType, Profile, Resident, Village, VillageInfo } from "@/lib/types";
 import { houseTypeOf } from "@/pixel/village";
 import HousePicker from "./HousePicker";
 import ProfileForm from "./ProfileForm";
@@ -85,6 +85,16 @@ function AdminPanel({ village, residents, myId, reload }: { village: Village; re
           <h3 className="label">비밀번호 바꾸기</h3>
           <PasswordForm />
         </section>
+        <section className="dotted space-y-2 pt-3" aria-label="대문 빗장">
+          <h3 className="label">대문 빗장 <span className="text-ink-soft">(마을장만 걸 수 있어요)</span></h3>
+          <p className="text-sm text-ink-soft">
+            {village.gate_locked ? "빗장이 걸려 있어요. 초대 링크가 있어도 새 주민이 들어올 수 없어요. 이미 사는 주민은 그대로예요." : "빗장을 걸면 초대 링크를 없애고, 풀 때까지 새 주민을 받지 않아요. 이미 사는 주민은 그대로예요."}
+          </p>
+          <button type="button" className={`btn btn-sm ${village.gate_locked ? "" : "btn-danger"}`} disabled={busy} aria-pressed={Boolean(village.gate_locked)}
+            onClick={() => void act(() => supabase().rpc("set_village_gate", { p_village: village.id, p_locked: !village.gate_locked }), village.gate_locked ? "대문 빗장을 풀었어요. 초대 링크를 새로 만들 수 있어요." : "대문 빗장을 걸었어요. 이제 새 주민은 들어올 수 없어요.")}>
+            {village.gate_locked ? "빗장 풀기" : "대문 빗장 걸기"}
+          </button>
+        </section>
         <section className="dotted pt-3">
           <h3 className="label">초대 링크 <span className="text-ink-soft">(주민 {residents.length}/{VILLAGE_CAPACITY}명)</span></h3>
           {invite ? (
@@ -99,7 +109,7 @@ function AdminPanel({ village, residents, myId, reload }: { village: Village; re
           )}
           <div className="mt-2 flex flex-wrap gap-2">
             {invite && !expired && <button type="button" className="btn btn-mint btn-sm" onClick={copy}>링크 복사</button>}
-            <button type="button" className="btn btn-sm" disabled={busy} onClick={() => act(() => supabase().rpc("create_invite", { p_village: village.id }), invite ? "새 링크를 발급했어요. 이전 링크는 더 이상 쓸 수 없어요." : "초대 링크를 만들었어요.")}>
+            <button type="button" className="btn btn-sm" disabled={busy || Boolean(village.gate_locked)} onClick={() => act(() => supabase().rpc("create_invite", { p_village: village.id }), invite ? "새 링크를 발급했어요. 이전 링크는 더 이상 쓸 수 없어요." : "초대 링크를 만들었어요.")}>
               {invite ? "새로 발급" : "초대 링크 만들기"}
             </button>
             {invite && <button type="button" className="btn btn-sm btn-danger" disabled={busy} onClick={() => act(() => supabase().rpc("revoke_invite", { p_village: village.id }), "초대 링크를 없앴어요.")}>링크 없애기</button>}
@@ -129,8 +139,8 @@ function AdminPanel({ village, residents, myId, reload }: { village: Village; re
 }
 
 export default function SettingsView({
-  profile, me, village, residents, reloadProfile, reloadVillage,
-}: { profile: Profile; me: Resident; village: Village; residents: Resident[]; reloadProfile: () => Promise<void>; reloadVillage: () => Promise<void> }) {
+  profile, me, village, residents, reloadProfile, reloadVillage, villages, onReorder,
+}: { profile: Profile; me: Resident; village: Village; residents: Resident[]; reloadProfile: () => Promise<void>; reloadVillage: () => Promise<void>; villages: VillageInfo[]; onReorder: (ids: string[]) => Promise<void> }) {
   const [error, setError] = useState("");
 
   const setHouseType = async (type: HouseType) => {
@@ -204,6 +214,22 @@ export default function SettingsView({
             ))}
           </ul>
         </Window>
+        {villages.length > 1 && (
+          <Window title="내 마을 순서" icon="" tone="lilac">
+            <div className="space-y-2 p-3">
+              <p className="text-sm text-ink-soft">위쪽 마을 이름을 누를 때 보이는 순서예요. 내 화면에서만 바뀌어요.</p>
+              <ol className="space-y-1">
+                {villages.map((x, i) => (
+                  <li key={x.id} className="card flex items-center gap-2 px-2 py-1 text-sm">
+                    <span className="flex-1 truncate">{x.name}</span>
+                    <button type="button" className="btn btn-sm" disabled={i === 0} aria-label={`${x.name} 위로`} onClick={() => { const a = villages.map((v) => v.id); [a[i - 1], a[i]] = [a[i], a[i - 1]]; void onReorder(a); }}>▲</button>
+                    <button type="button" className="btn btn-sm" disabled={i === villages.length - 1} aria-label={`${x.name} 아래로`} onClick={() => { const a = villages.map((v) => v.id); [a[i + 1], a[i]] = [a[i], a[i + 1]]; void onReorder(a); }}>▼</button>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </Window>
+        )}
         <MovingCakes villageId={village.id} myId={me.user_id} neighbors={residents.length - 1} compact />
         <Window title={`집 꾸미기 · ${village.name}`} icon="" tone="mint" controls={foldHouse}>
           <div className="space-y-3 p-3">
